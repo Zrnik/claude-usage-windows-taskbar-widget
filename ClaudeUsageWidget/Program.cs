@@ -21,15 +21,27 @@ internal class App : Application
     static void Main(string[] args)
     {
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-            System.Windows.MessageBox.Show(e.ExceptionObject?.ToString(), "Claude Usage Widget crashed");
+            WriteCrashLog(e.ExceptionObject?.ToString());
 
         var app = new App();
         app.DispatcherUnhandledException += (_, e) =>
         {
-            System.Windows.MessageBox.Show(e.Exception?.ToString(), "Claude Usage Widget crashed");
+            WriteCrashLog(e.Exception?.ToString());
             e.Handled = true;
         };
         app.Run();
+    }
+
+    private static void WriteCrashLog(string? message)
+    {
+        try
+        {
+            var exePath = Environment.ProcessPath ?? "";
+            var logPath = Path.ChangeExtension(exePath, ".log");
+            var entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]{Environment.NewLine}{message}{Environment.NewLine}{Environment.NewLine}";
+            File.AppendAllText(logPath, entry);
+        }
+        catch { }
     }
 
     protected override void OnStartup(StartupEventArgs e)
