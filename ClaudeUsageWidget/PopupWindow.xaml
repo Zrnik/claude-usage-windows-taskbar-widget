@@ -1,0 +1,17 @@
+<Window x:Class="ClaudeUsageWidgetProvider.PopupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="NoResize"
+        Topmost="True"
+        AllowsTransparency="True"
+        Background="Transparent"
+        SizeToContent="Height"
+        Width="170"
+        Title="Claude Usage Widget Popup">
+    <Border Background="#1C1C1C" CornerRadius="6" Padding="10,8">
+        <StackPanel x:Name="LimitsPanel"/>
+    </Border>
+</Window>
