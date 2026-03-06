@@ -20,6 +20,8 @@ internal class App : Application
     [STAThread]
     static void Main(string[] args)
     {
+        WriteCrashLog("started");
+
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             WriteCrashLog(e.ExceptionObject?.ToString());
 
