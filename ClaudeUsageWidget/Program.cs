@@ -20,7 +20,15 @@ internal class App : Application
     [STAThread]
     static void Main(string[] args)
     {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            System.Windows.MessageBox.Show(e.ExceptionObject?.ToString(), "Claude Usage Widget crashed");
+
         var app = new App();
+        app.DispatcherUnhandledException += (_, e) =>
+        {
+            System.Windows.MessageBox.Show(e.Exception?.ToString(), "Claude Usage Widget crashed");
+            e.Handled = true;
+        };
         app.Run();
     }
 
