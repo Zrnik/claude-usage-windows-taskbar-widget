@@ -2,6 +2,8 @@
 
 A small WPF widget that sits in the Windows taskbar and shows your current Claude AI usage — 5-hour session limit and 7-day rolling limit.
 
+The exe is self-contained — no .NET runtime installation required.
+
 Appears in the bottom-right corner of every monitor, next to the system tray.
 
 ![Screenshot](screenshot.png)
@@ -40,6 +42,8 @@ Progress bar color: green (< 75%), yellow (75–90%), red (≥ 90%).
 > **Note:** This is not a native Windows widget (Win+W panel). It is a standalone borderless WPF window that pins itself to the taskbar next to the system tray and stays always on top. The reason: the native widget API requires an MSIX package and COM registration, which needs Developer Mode enabled and a complicated install process.
 
 ## Development
+
+Requires [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8).
 
 ```powershell
 make run    # dotnet run (Debug — Run at startup is grayed out)
