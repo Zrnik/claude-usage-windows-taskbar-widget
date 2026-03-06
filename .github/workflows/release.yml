@@ -26,10 +26,8 @@ jobs:
           dotnet publish ClaudeUsageWidget
           -c Release
           -r ${{ matrix.rid }}
-          --self-contained
+          --no-self-contained
           -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:PublishTrimmed=true
           -o publish/${{ matrix.rid }}
 
       - name: Rename artifact

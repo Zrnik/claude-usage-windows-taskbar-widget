@@ -2,7 +2,7 @@
 
 A small WPF widget that sits in the Windows taskbar and shows your current Claude AI usage — 5-hour session limit and 7-day rolling limit.
 
-The exe is self-contained — no .NET runtime installation required.
+Requires [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8) (x64 or ARM64).
 
 Appears in the bottom-right corner of every monitor, next to the system tray.
 
