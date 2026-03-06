@@ -66,10 +66,16 @@ internal sealed class TopMostEnforcer : IDisposable
     private volatile uint _threadId;
     private bool _disposed;
 
+    // Must be fields — local variables get GC'd in Release builds before the message loop ends
+    private readonly WinEventDelegate _fgDelegate;
+    private readonly WinEventDelegate _reorderDelegate;
+
     internal TopMostEnforcer(IntPtr hwnd)
     {
         _hwnd = hwnd;
         _processId = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+        _fgDelegate = OnForegroundChanged;
+        _reorderDelegate = OnZOrderChanged;
         var thread = new Thread(Run) { IsBackground = true };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
@@ -79,14 +85,10 @@ internal sealed class TopMostEnforcer : IDisposable
     {
         _threadId = GetCurrentThreadId();
 
-        // Keep delegates alive for duration of message loop
-        WinEventDelegate fgDelegate = OnForegroundChanged;
-        WinEventDelegate reorderDelegate = OnZOrderChanged;
-
         var fgHook = SetWinEventHook(EventSystemForeground, EventSystemForeground,
-            IntPtr.Zero, fgDelegate, 0, 0, WinEventOutOfContext);
+            IntPtr.Zero, _fgDelegate, 0, 0, WinEventOutOfContext);
         var reorderHook = SetWinEventHook(EventObjectReorder, EventObjectReorder,
-            IntPtr.Zero, reorderDelegate, 0, 0, WinEventOutOfContext);
+            IntPtr.Zero, _reorderDelegate, 0, 0, WinEventOutOfContext);
 
         int ret;
         while ((ret = GetMessage(out var msg, IntPtr.Zero, 0, 0)) != 0)
