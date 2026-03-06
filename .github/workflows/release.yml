@@ -29,6 +29,7 @@ jobs:
           --self-contained
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishTrimmed=true
           -o publish/${{ matrix.rid }}
 
       - name: Rename artifact
