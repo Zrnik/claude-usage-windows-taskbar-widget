@@ -26,7 +26,10 @@ internal sealed class ClaudeApiClient : IDisposable
 
     private DateTimeOffset _lastFetchTime = DateTimeOffset.MinValue;
     private UsageData? _cachedUsage;
-    private OAuthCredential? _credential;
+    private List<OAuthCredential> _credentials = [];
+    private int _credentialIndex;
+
+    private OAuthCredential? _credential => _credentialIndex < _credentials.Count ? _credentials[_credentialIndex] : null;
 
     public string CredentialPath => _credential?.SourcePath ?? "";
     public string? LastError { get; private set; }
@@ -40,9 +43,10 @@ internal sealed class ClaudeApiClient : IDisposable
         messages = new[] { new { role = "user", content = "." } }
     });
 
-    public void SetCredential(OAuthCredential credential)
+    public void SetCredentials(List<OAuthCredential> credentials)
     {
-        _credential = credential;
+        _credentials = credentials;
+        _credentialIndex = 0;
     }
 
     public async Task<UsageData?> GetUsageAsync(bool forceRefresh = false)
@@ -79,6 +83,35 @@ internal sealed class ClaudeApiClient : IDisposable
             }
             return _cachedUsage;
         }
+        catch (UnauthorizedAccessException)
+        {
+            // Try refresh first
+            if (await RefreshTokenAsync())
+            {
+                try
+                {
+                    var usage = await FetchUsageFromRateLimitHeadersAsync();
+                    if (usage != null)
+                    {
+                        LastError = null;
+                        _cachedUsage = usage;
+                        _lastFetchTime = DateTimeOffset.UtcNow;
+                    }
+                    return _cachedUsage;
+                }
+                catch { }
+            }
+
+            // Try next credential source
+            if (_credentialIndex + 1 < _credentials.Count)
+            {
+                _credentialIndex++;
+                return await GetUsageAsync(forceRefresh: true);
+            }
+
+            LastError = "Invalid credentials — re-login with Claude CLI";
+            return _cachedUsage;
+        }
         catch (Exception ex)
         {
             LastError = ex.Message;
@@ -94,6 +127,10 @@ internal sealed class ClaudeApiClient : IDisposable
         request.Content = new StringContent(MinimalRequestBody, Encoding.UTF8, "application/json");
 
         var response = await Http.SendAsync(request);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            throw new UnauthorizedAccessException("401 Unauthorized — invalid or expired credentials");
+
         response.EnsureSuccessStatusCode();
 
         var limits = new List<RateLimitEntry>();

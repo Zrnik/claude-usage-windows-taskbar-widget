@@ -22,14 +22,23 @@ internal static class CredentialStore
 
     public static OAuthCredential? LoadCredential()
     {
-        // 1. WSL (preferred — Claude Code CLI refreshes these tokens)
-        var wslCred = TryReadWslCredential();
-        if (wslCred != null) return wslCred;
+        var all = LoadAllCredentials();
+        return all.Count > 0 ? all[0] : null;
+    }
 
-        // 2. Windows native path (fallback)
+    public static List<OAuthCredential> LoadAllCredentials()
+    {
+        var result = new List<OAuthCredential>();
+
+        var wslCred = TryReadWslCredential();
+        if (wslCred != null) result.Add(wslCred);
+
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var nativePath = Path.Combine(userProfile, ".claude", ".credentials.json");
-        return TryReadCredential(nativePath);
+        var nativeCred = TryReadCredential(nativePath);
+        if (nativeCred != null) result.Add(nativeCred);
+
+        return result;
     }
 
     public static void SaveCredential(OAuthCredential credential)

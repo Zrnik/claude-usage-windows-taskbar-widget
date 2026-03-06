@@ -30,9 +30,7 @@ internal class App : Application
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         var apiClient = new ClaudeApiClient();
-        var credential = CredentialStore.LoadCredential();
-        if (credential != null)
-            apiClient.SetCredential(credential);
+        apiClient.SetCredentials(CredentialStore.LoadAllCredentials());
 
         Exit += (_, _) => apiClient.Dispose();
 
