@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
-using System.Windows;
 
 namespace ClaudeUsageWidgetProvider;
 
@@ -71,37 +70,36 @@ internal static class Updater
         return null;
     }
 
-    public static void LaunchUpdater(UpdateInfo update)
+    public static void LaunchUpdaterTerminal(UpdateInfo update)
     {
-        try
+        var scriptPath = Path.Combine(Path.GetTempPath(), "ClaudeUsageWidget_update.ps1");
+        var currentExe = Environment.ProcessPath!;
+        var currentPid = Environment.ProcessId;
+        var tempExe = Path.Combine(Path.GetTempPath(), "ClaudeUsageWidget_update.exe");
+
+        // PS script downloads, kills the app, replaces exe, starts new version
+        var script =
+            $"Write-Host 'Downloading Claude Usage Widget...' -ForegroundColor Cyan\r\n" +
+            $"curl.exe -L --progress-bar -o '{tempExe}' '{update.DownloadUrl}'\r\n" +
+            $"Write-Host 'Stopping app...' -ForegroundColor Yellow\r\n" +
+            $"Stop-Process -Id {currentPid} -Force -ErrorAction SilentlyContinue\r\n" +
+            $"Start-Sleep -Milliseconds 500\r\n" +
+            $"Write-Host 'Installing update...' -ForegroundColor Yellow\r\n" +
+            $"Copy-Item '{tempExe}' '{currentExe}' -Force\r\n" +
+            $"Remove-Item '{tempExe}' -Force\r\n" +
+            $"Write-Host 'Launching new version...' -ForegroundColor Green\r\n" +
+            $"Start-Process '{currentExe}'\r\n" +
+            $"Start-Sleep -Seconds 2\r\n" +
+            $"Remove-Item '{scriptPath}' -Force\r\n";
+
+        File.WriteAllText(scriptPath, script);
+
+        Process.Start(new ProcessStartInfo
         {
-            var scriptPath = Path.Combine(Path.GetTempPath(), "ClaudeUsageWidget_update.ps1");
-            var currentExe = Environment.ProcessPath!;
-            var currentPid = Environment.ProcessId;
-            var tempExe = Path.Combine(Path.GetTempPath(), Path.GetFileName(update.DownloadUrl));
+            FileName = "powershell.exe",
+            Arguments = $"-ExecutionPolicy Bypass -File \"{scriptPath}\"",
+            UseShellExecute = true
+        });
 
-            // PS1 script: wait for this process to exit, download, replace, restart, self-delete
-            var script =
-                $"while (Get-Process -Id {currentPid} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}\r\n" +
-                $"Invoke-WebRequest -Uri '{update.DownloadUrl}' -OutFile '{tempExe}'\r\n" +
-                $"Copy-Item '{tempExe}' '{currentExe}' -Force\r\n" +
-                $"Remove-Item '{tempExe}' -Force\r\n" +
-                $"Start-Process '{currentExe}'\r\n" +
-                $"Remove-Item '{scriptPath}' -Force\r\n";
-
-            File.WriteAllText(scriptPath, script);
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\"",
-                UseShellExecute = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            });
-
-            Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown());
-        }
-        catch { }
     }
-
 }

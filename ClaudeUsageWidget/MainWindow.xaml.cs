@@ -377,8 +377,8 @@ public partial class MainWindow : Window
     private async Task UpdateAsync()
     {
         var info = _latestRelease ?? await Updater.CheckAsync();
-        if (info != null)
-            Updater.LaunchUpdater(info);
+        if (info == null) return;
+        Updater.LaunchUpdaterTerminal(info);
     }
 
     private const string RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
