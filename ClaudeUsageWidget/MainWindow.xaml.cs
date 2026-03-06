@@ -94,6 +94,7 @@ public partial class MainWindow : Window
     private PopupWindow? _popup;
     private UsageData? _lastUsage;
     private TopMostEnforcer? _topMostEnforcer;
+    private UpdateInfo? _latestRelease;
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
@@ -161,6 +162,7 @@ public partial class MainWindow : Window
 
             StartRefreshTimer();
             StartTextTimer();
+            _ = LoadLatestReleaseAsync();
         };
     }
 
@@ -367,6 +369,18 @@ public partial class MainWindow : Window
         Text7d.Text = "error";
     }
 
+    private async Task LoadLatestReleaseAsync()
+    {
+        _latestRelease = await Updater.CheckAsync();
+    }
+
+    private async Task UpdateAsync()
+    {
+        var info = _latestRelease ?? await Updater.CheckAsync();
+        if (info != null)
+            Updater.LaunchUpdater(info);
+    }
+
     private const string RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string RunRegistryValue = "ClaudeUsageWidget";
 
@@ -410,6 +424,9 @@ public partial class MainWindow : Window
 
         var menu = new ContextMenuWindow { Owner = this };
         menu.AddCheckItem("Run at startup", IsStartupEnabled(), isExe, SetStartup);
+        menu.AddSeparator();
+        var updateLabel = _latestRelease != null ? $"Update to v{_latestRelease.Version}" : "Update to latest";
+        menu.AddItem(updateLabel, () => _ = UpdateAsync());
         menu.AddSeparator();
         menu.AddItem("Quit", () => Application.Current.Shutdown());
 
