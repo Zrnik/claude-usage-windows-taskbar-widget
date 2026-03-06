@@ -84,6 +84,8 @@ public partial class MainWindow : Window
     private int _lastTrayWidth;
     private DispatcherTimer? _trayWatchTimer;
     private DispatcherTimer? _spinnerTimer;
+    private DispatcherTimer? _refreshTimer;
+    private DispatcherTimer? _textTimer;
     private int _spinnerFrame;
     private static readonly string[] SpinnerFrames = ["|", "/", "—", "\\"];
     private readonly ClaudeApiClient _apiClient;
@@ -116,6 +118,8 @@ public partial class MainWindow : Window
         {
             _topMostEnforcer?.Dispose();
             _popup?.Close();
+            _refreshTimer?.Stop();
+            _textTimer?.Stop();
         };
     }
 
@@ -154,6 +158,9 @@ public partial class MainWindow : Window
                 UpdateBars(usage);
             else
                 ShowErrorState();
+
+            StartRefreshTimer();
+            StartTextTimer();
         };
     }
 
@@ -238,6 +245,38 @@ public partial class MainWindow : Window
         // Update WPF coords for popup positioning
         Left = posXPx / scale;
         Top = posYPx / scale;
+    }
+
+    private void StartRefreshTimer()
+    {
+        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        _refreshTimer.Tick += async (_, _) =>
+        {
+            var usage = await _apiClient.GetUsageAsync();
+            if (usage != null)
+                UpdateBars(usage);
+            else if (_lastUsage == null)
+                ShowErrorState();
+        };
+        _refreshTimer.Start();
+    }
+
+    private void StartTextTimer()
+    {
+        _textTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        _textTimer.Tick += (_, _) => RefreshText();
+        _textTimer.Start();
+    }
+
+    private void RefreshText()
+    {
+        if (_lastUsage == null) return;
+        var first = _lastUsage.Limits.ElementAtOrDefault(0);
+        var second = _lastUsage.Limits.ElementAtOrDefault(1);
+        if (first != null)
+            Text5h.Text = $"{first.Utilization:0}%  {TimeFormatter.FormatResetTime(first.ResetsAt)}";
+        if (second != null)
+            Text7d.Text = $"{second.Utilization:0}%  {TimeFormatter.FormatResetTime(second.ResetsAt)}";
     }
 
     private void StartTrayWatchTimer()
