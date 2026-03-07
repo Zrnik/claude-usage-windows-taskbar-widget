@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-01 UsageHistoryStore
-last_updated: "2026-03-07T17:13:00.000Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-07T18:16:20.404Z"
 last_activity: 2026-03-07 — Completed 07-01 UsageHistoryStore
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 2
+  total_plans: 5
+  completed_plans: 4
 ---
 
 # Project State
@@ -50,6 +50,8 @@ Klíčové pro v0.1.11 (z research):
 - [Phase 07-history-persistence]: ExtractAccountKey() duplikuje logiku z CredentialStore — private metoda nemůže být sdílena bez refactoru mimo scope
 - [Phase 07-history-persistence]: Singleton UsageHistoryStore.Instance — žádné DI, přímý přístup z MainWindow
 - [Phase 07-history-persistence]: Atomic write pattern potvrzen: tmp + Move(overwrite:true)
+- [Phase 08-tooltip-chart]: PadToLength vždy na 336 bodů (14d × 24h) — konzistentní X-škálování
+- [Phase 08-tooltip-chart]: Hraniční bod sdílený mezi segmenty při barevném přechodu — plynulý přechod bez mezery
 
 ### Pending Todos
 
@@ -66,6 +68,6 @@ Klíčové pro v0.1.11 (z research):
 
 ## Session Continuity
 
-Last session: 2026-03-07T17:13:00.000Z
-Stopped at: Completed 07-01 UsageHistoryStore
-Resume file: .planning/phases/07-history-persistence/07-01-SUMMARY.md
+Last session: 2026-03-07T18:16:20.386Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None

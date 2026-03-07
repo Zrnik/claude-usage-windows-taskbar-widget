@@ -22,8 +22,8 @@
 ### Tooltip & Chart
 
 - [ ] **TOOL-01**: PopupWindow je širší (170→280px), reset čas vlevo, reset datum vpravo
-- [ ] **TOOL-02**: Tooltip zobrazuje dva sparkline grafy (5h + 7d utilization) pod reset řádkem
-- [ ] **TOOL-03**: Grafy ukazují 14denní rolling okno; data downsamplována pro plynulý render
+- [x] **TOOL-02**: Tooltip zobrazuje dva sparkline grafy (5h + 7d utilization) pod reset řádkem
+- [x] **TOOL-03**: Grafy ukazují 14denní rolling okno; data downsamplována pro plynulý render
 
 ## Budoucí Requirements
 
@@ -54,8 +54,8 @@
 | HIST-03 | Phase 7 | Complete |
 | HIST-04 | Phase 7 | Complete |
 | TOOL-01 | Phase 8 | Pending |
-| TOOL-02 | Phase 8 | Pending |
-| TOOL-03 | Phase 8 | Pending |
+| TOOL-02 | Phase 8 | Complete |
+| TOOL-03 | Phase 8 | Complete |
 
 **Coverage:**
 - v0.1.11 requirements: 11 total
