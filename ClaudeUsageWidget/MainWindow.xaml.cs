@@ -257,8 +257,8 @@ public partial class MainWindow : Window
             var usage = await _apiClient.GetUsageAsync();
             if (usage != null)
                 UpdateBars(usage);
-            else if (_lastUsage == null)
-                ShowErrorState();
+            else
+                ShowErrorState(); // vždy při selhání — bez podmínky; locked decision z CONTEXT.md
         };
         _refreshTimer.Start();
     }
