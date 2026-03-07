@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: planning
 stopped_at: Completed 03-data-a-viditelnost-03-03-PLAN.md
-last_updated: "2026-03-07T08:12:15.031Z"
+last_updated: "2026-03-07T11:21:48.591Z"
 last_activity: 2026-03-06 — Roadmap vytvořen
 progress:
   total_phases: 3
