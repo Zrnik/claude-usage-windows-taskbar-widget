@@ -32,7 +32,12 @@
   2. Widget načte Codex credentials a zobrazí samostatnou sadu barů pro Codex účet
   3. Každá sada barů zobrazuje data z API callu specifického pro daný účet (ne sdílená data)
   4. Pokud credentials pro danou službu neexistují, widget tuto službu tiše přeskočí (nezobrazí error)
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — ServiceType, AccountInfo, LoadAllAccounts() + Codex credential loading (CredentialStore)
+- [ ] 04-02-PLAN.md — Per-account konstruktor ClaudeApiClient(AccountInfo) + _noReload fix
+- [ ] 04-03-PLAN.md — Per-account MainWindow instantiation v Program.cs + manuální verifikace
 
 ### Phase 5: Multi-account UI
 **Goal**: Widget vizuálně prezentuje více účtů jako horizontální řadu sloupců s ikonou identifikující službu
@@ -51,5 +56,5 @@
 | 1. Cleanup | v0.1.9 | 1/1 | Complete | 2026-03-06 |
 | 2. Widget UI a pozicování | v0.1.9 | 3/3 | Complete | 2026-03-06 |
 | 3. Data a viditelnost | v0.1.9 | 3/3 | Complete | 2026-03-07 |
-| 4. Multi-account detekce | v0.1.10 | 0/? | Not started | - |
+| 4. Multi-account detekce | v0.1.10 | 0/3 | Not started | - |
 | 5. Multi-account UI | v0.1.10 | 0/? | Not started | - |
