@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
 status: Not started (roadmap ready)
-stopped_at: Completed 05-multi-account-ui-05-01-PLAN.md
-last_updated: "2026-03-07T12:32:56.619Z"
+stopped_at: "Completed 05-multi-account-ui-05-02-PLAN.md (checkpoint: vizualni verifikace)"
+last_updated: "2026-03-07T12:38:22.932Z"
 last_activity: 2026-03-07 — Roadmap pro v0.1.10 vytvořen
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -43,6 +43,7 @@ Viz PROJECT.md Key Decisions table.
 - [Phase 04-multi-account-detekce]: Phase 5 first-account-wins: zatim widget zobrazuje prvni ucet na vsech taskbarech, Phase 5 prida horizontalni layout
 - [Phase 04-multi-account-detekce]: Fallback no-credentials AccountInfo: prazdny seznam credentials generuje synthetic ucet, widget nesmit crashnout
 - [Phase 05-multi-account-ui]: Build Action Resource (ne EmbeddedResource) pro PNG assets — Pack URI přístup v XAML
+- [Phase 05-multi-account-ui]: AccountPanel konstruktor internal — ServiceType je internal enum, CS0051 vyzaduje konzistentni pristupnost
 
 ### Pending Todos
 
@@ -58,6 +59,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T12:32:56.601Z
-Stopped at: Completed 05-multi-account-ui-05-01-PLAN.md
+Last session: 2026-03-07T12:38:22.910Z
+Stopped at: Completed 05-multi-account-ui-05-02-PLAN.md (checkpoint: vizualni verifikace)
 Resume file: None

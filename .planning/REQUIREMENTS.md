@@ -14,8 +14,8 @@
 ### UI — ikony a layout
 
 - [x] **UI-07**: Každá sada progress barů zobrazuje ikonu příslušné služby (Claude logo / Codex logo) vlevo od barů
-- [ ] **UI-08**: Více sad barů se zobrazuje horizontálně vedle sebe (každý účet = jeden sloupec)
-- [ ] **UI-09**: Šířka widgetu se dynamicky přizpůsobuje počtu účtů tak, aby se widget vždy vešel mezi system tray a ikony vlevo v taskbaru
+- [x] **UI-08**: Více sad barů se zobrazuje horizontálně vedle sebe (každý účet = jeden sloupec)
+- [x] **UI-09**: Šířka widgetu se dynamicky přizpůsobuje počtu účtů tak, aby se widget vždy vešel mezi system tray a ikony vlevo v taskbaru
 
 ## v2 Requirements
 
@@ -40,8 +40,8 @@
 | MULTI-02 | Phase 4 | Complete |
 | MULTI-03 | Phase 4 | Complete |
 | UI-07 | Phase 5 | Complete |
-| UI-08 | Phase 5 | Pending |
-| UI-09 | Phase 5 | Pending |
+| UI-08 | Phase 5 | Complete |
+| UI-09 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 6 total
