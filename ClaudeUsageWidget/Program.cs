@@ -67,19 +67,18 @@ internal class App : Application
 
         var primaryHwnd = FindWindow("Shell_TrayWnd", null);
 
-        // Primární okno = první účet
-        var primaryWindow = new MainWindow(clients[0], primaryHwnd, isPrimary: true);
+        // Primární okno = všechny účty
+        var primaryWindow = new MainWindow(clients, primaryHwnd, isPrimary: true);
         MainWindow = primaryWindow;
         primaryWindow.Show();
 
-        // Pro každý sekundární taskbar: zobrazit první účet
-        // (Phase 5 změní layout na horizontální řadu per-taskbar)
+        // Sekundární taskbary — všechny účty (stejný list)
         EnumWindows((hwnd, _) =>
         {
             var sb = new StringBuilder(64);
             GetClassName(hwnd, sb, 64);
             if (sb.ToString() == "Shell_SecondaryTrayWnd")
-                new MainWindow(clients[0], hwnd, isPrimary: false).Show();
+                new MainWindow(clients, hwnd, isPrimary: false).Show();
             return true;
         }, IntPtr.Zero);
     }

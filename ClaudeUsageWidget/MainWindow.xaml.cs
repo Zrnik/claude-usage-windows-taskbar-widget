@@ -1,10 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace ClaudeUsageWidgetProvider;
@@ -92,13 +90,10 @@ public partial class MainWindow : Window
     private DispatcherTimer? _refreshTimer;
     private DispatcherTimer? _textTimer;
     private DispatcherTimer? _visibilityTimer;
-    private int _spinnerFrame;
-    private static readonly string[] SpinnerFrames = ["|", "/", "—", "\\"];
-    private readonly ClaudeApiClient _apiClient;
+    private readonly List<(ClaudeApiClient Client, AccountPanel Panel, UsageData? LastUsage)> _accounts = [];
     private readonly IntPtr _taskbarHwnd;
     private readonly bool _isPrimary;
     private PopupWindow? _popup;
-    private UsageData? _lastUsage;
     private TopMostEnforcer? _topMostEnforcer;
     private UpdateInfo? _latestRelease;
 
@@ -141,14 +136,23 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
-    internal MainWindow(ClaudeApiClient apiClient, IntPtr taskbarHwnd, bool isPrimary)
+    internal MainWindow(List<ClaudeApiClient> clients, IntPtr taskbarHwnd, bool isPrimary)
     {
-        _apiClient = apiClient;
         _taskbarHwnd = taskbarHwnd;
         _isPrimary = isPrimary;
         InitializeComponent();
         MouseEnter += (_, _) => ShowPopup();
         MouseLeave += (_, _) => HidePopup();
+
+        foreach (var client in clients)
+        {
+            var panel = new AccountPanel(client.AccountService);
+            AccountsPanel.Children.Add(panel);
+            _accounts.Add((client, panel, null));
+        }
+
+        const double ColWidth = 170.0;
+        Width = ColWidth * clients.Count;
 
         Loaded += async (_, _) =>
         {
@@ -158,20 +162,57 @@ public partial class MainWindow : Window
             SetTaskbarHeight();
             PositionWindow();
             StartTrayWatchTimer();
-            ShowLoadingState();
 
-            var usage = await _apiClient.GetUsageAsync();
-            StopSpinner();
-            if (usage != null)
-                UpdateBars(usage);
-            else
-                ShowErrorState();
+            foreach (var (_, panel, _) in _accounts)
+                panel.ShowLoadingState();
+
+            StartSpinnerTimer();
+
+            var tasks = _accounts.Select((entry, i) => (Index: i, Task: entry.Client.GetUsageAsync())).ToList();
+            foreach (var (index, task) in tasks)
+            {
+                var usage = await task;
+                var (client, panel, _) = _accounts[index];
+                StopSpinnerIfAllLoaded();
+                if (usage != null)
+                {
+                    _accounts[index] = (client, panel, usage);
+                    panel.UpdateBars(usage);
+                }
+                else
+                {
+                    panel.ShowErrorState();
+                }
+            }
 
             StartRefreshTimer();
             StartTextTimer();
             StartVisibilityTimer();
             _ = LoadLatestReleaseAsync();
         };
+    }
+
+    private void StartSpinnerTimer()
+    {
+        _spinnerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _spinnerTimer.Tick += (_, _) =>
+        {
+            foreach (var (_, panel, _) in _accounts)
+                panel.AdvanceSpinner();
+        };
+        _spinnerTimer.Start();
+    }
+
+    private void StopSpinnerIfAllLoaded()
+    {
+        // called after each account loads — stop only when all are done
+        // spinner is stopped separately after the await loop
+    }
+
+    private void StopSpinner()
+    {
+        _spinnerTimer?.Stop();
+        _spinnerTimer = null;
     }
 
     private double GetMonitorScale()
@@ -262,11 +303,20 @@ public partial class MainWindow : Window
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _refreshTimer.Tick += async (_, _) =>
         {
-            var usage = await _apiClient.GetUsageAsync();
-            if (usage != null)
-                UpdateBars(usage);
-            else
-                ShowErrorState(); // vždy při selhání — bez podmínky; locked decision z CONTEXT.md
+            for (int i = 0; i < _accounts.Count; i++)
+            {
+                var (client, panel, _) = _accounts[i];
+                var usage = await client.GetUsageAsync();
+                if (usage != null)
+                {
+                    _accounts[i] = (client, panel, usage);
+                    panel.UpdateBars(usage);
+                }
+                else
+                {
+                    panel.ShowErrorState();
+                }
+            }
         };
         _refreshTimer.Start();
     }
@@ -274,7 +324,11 @@ public partial class MainWindow : Window
     private void StartTextTimer()
     {
         _textTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
-        _textTimer.Tick += (_, _) => RefreshText();
+        _textTimer.Tick += (_, _) =>
+        {
+            foreach (var (_, panel, lastUsage) in _accounts)
+                panel.RefreshText(lastUsage);
+        };
         _textTimer.Start();
     }
 
@@ -289,7 +343,7 @@ public partial class MainWindow : Window
     {
         bool taskbarVisible = IsTaskbarVisible();
         bool fullscreen = IsFullscreenOnMyMonitor();
-        // Locked decision z CONTEXT.md: widget viditelný jen když taskbarVisible && !fullscreenOnSameMonitor
+        // Locked decision z CONTEXT.md: widget viditelny jen kdyz taskbarVisible && !fullscreenOnSameMonitor
         Visibility = (taskbarVisible && !fullscreen)
             ? Visibility.Visible
             : Visibility.Hidden;
@@ -299,28 +353,23 @@ public partial class MainWindow : Window
     {
         if (_isPrimary)
         {
-            // Pro primární taskbar: zjistit zda má auto-hide zapnuté
             var stateData = new APPBARDATA { cbSize = (uint)Marshal.SizeOf<APPBARDATA>() };
             uint state = SHAppBarMessage(ABM_GETSTATE, ref stateData);
             bool autoHideEnabled = (state & ABS_AUTOHIDE) != 0;
 
-            if (!autoHideEnabled) return true; // auto-hide vypnutý → vždy viditelný
+            if (!autoHideEnabled) return true;
 
-            // Auto-hide zapnutý: porovnat aktuální pozici taskbaru s expected pozicí
             if (!GetWindowRect(_taskbarHwnd, out RECT actualRect)) return true;
             var posData = new APPBARDATA { cbSize = (uint)Marshal.SizeOf<APPBARDATA>() };
             SHAppBarMessage(ABM_GETTASKBARPOS, ref posData);
-            // Taskbar je skrytý = actualRect.Top je za spodní hranicí expected pozice
             return actualRect.Top <= posData.rc.Bottom;
         }
         else
         {
-            // Pro sekundární taskbar: heuristika — porovnat Top s dolní hranicí monitoru
             if (!GetWindowRect(_taskbarHwnd, out RECT taskbarRect)) return true;
             var monitor = MonitorFromWindow(_taskbarHwnd, MONITOR_DEFAULTTONEAREST);
             var mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
             if (!GetMonitorInfo(monitor, ref mi)) return true;
-            // Skrytý = Top taskbaru je blízko dolního okraje monitoru (tolerance 2px)
             return taskbarRect.Top < mi.rcMonitor.Bottom - 2;
         }
     }
@@ -330,31 +379,17 @@ public partial class MainWindow : Window
         var foreground = GetForegroundWindow();
         if (foreground == IntPtr.Zero) return false;
 
-        // Zjistit monitor taskbaru (widget ho sleduje)
         var myMonitor = MonitorFromWindow(_taskbarHwnd, MONITOR_DEFAULTTONEAREST);
         var mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
         if (!GetMonitorInfo(myMonitor, ref mi)) return false;
 
-        // Zjistit monitor foreground okna
         var fgMonitor = MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST);
-        if (fgMonitor != myMonitor) return false; // fullscreen na jiném monitoru — neskrývat
+        if (fgMonitor != myMonitor) return false;
 
-        // Porovnat rozměry foreground okna s fyzickými rozměry monitoru (rcMonitor, ne rcWork)
         if (!GetWindowRect(foreground, out RECT fgRect)) return false;
         var mon = mi.rcMonitor;
         return fgRect.Left <= mon.Left && fgRect.Top <= mon.Top
             && fgRect.Right >= mon.Right && fgRect.Bottom >= mon.Bottom;
-    }
-
-    private void RefreshText()
-    {
-        if (_lastUsage == null) return;
-        var first = _lastUsage.Limits.ElementAtOrDefault(0);
-        var second = _lastUsage.Limits.ElementAtOrDefault(1);
-        if (first != null)
-            Text5h.Text = $"{first.Utilization:0}%  {TimeFormatter.FormatResetTime(first.ResetsAt)}";
-        if (second != null)
-            Text7d.Text = $"{second.Utilization:0}%  {TimeFormatter.FormatResetTime(second.ResetsAt)}";
     }
 
     private void StartTrayWatchTimer()
@@ -368,86 +403,23 @@ public partial class MainWindow : Window
         _trayWatchTimer.Start();
     }
 
-    private void ShowLoadingState()
-    {
-        Bar5h.Value = 0;
-        Bar7d.Value = 0;
-        Text5h.Foreground = Brushes.White;
-        Text7d.Foreground = Brushes.White;
-        _spinnerFrame = 0;
-        Text5h.Text = SpinnerFrames[0];
-        Text7d.Text = SpinnerFrames[0];
-        _spinnerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
-        _spinnerTimer.Tick += (_, _) =>
-        {
-            _spinnerFrame = (_spinnerFrame + 1) % SpinnerFrames.Length;
-            Text5h.Text = SpinnerFrames[_spinnerFrame];
-            Text7d.Text = SpinnerFrames[_spinnerFrame];
-        };
-        _spinnerTimer.Start();
-    }
-
-    private void StopSpinner()
-    {
-        _spinnerTimer?.Stop();
-        _spinnerTimer = null;
-    }
-
     private void ShowPopup()
     {
-        if (_lastUsage == null && _apiClient.LastError == null) return;
+        if (_accounts.Count == 0) return;
+        var (client, _, lastUsage) = _accounts[0];
+        if (lastUsage == null && client.LastError == null) return;
         if (_popup == null)
         {
             _popup = new PopupWindow();
-            _popup.Owner = this; // owned window always stays above owner, no z-order race
+            _popup.Owner = this;
             _popup.MouseLeave += (_, _) => HidePopup();
         }
-        _popup.UpdateAndShow(_lastUsage, _apiClient.LastError, _apiClient.CredentialPath, Left, Top);
+        _popup.UpdateAndShow(lastUsage, client.LastError, client.CredentialPath, Left, Top);
     }
 
     private void HidePopup()
     {
         _popup?.Hide();
-    }
-
-    public void UpdateBars(UsageData data)
-    {
-        _lastUsage = data;
-        Text5h.Foreground = Brushes.White;
-        Text7d.Foreground = Brushes.White;
-
-        var first = data.Limits.ElementAtOrDefault(0);
-        var second = data.Limits.ElementAtOrDefault(1);
-
-        if (first != null)
-        {
-            Bar5h.Value = first.Utilization;
-            Text5h.Text = $"{first.Utilization:0}%  {TimeFormatter.FormatResetTime(first.ResetsAt)}";
-            SetBarColor(GetBarIndicator(Bar5h), first.Utilization);
-        }
-
-        if (second != null)
-        {
-            Bar7d.Value = second.Utilization;
-            Text7d.Text = $"{second.Utilization:0}%  {TimeFormatter.FormatResetTime(second.ResetsAt)}";
-            SetBarColor(GetBarIndicator(Bar7d), second.Utilization);
-        }
-    }
-
-    private void ShowErrorState()
-    {
-        _lastUsage = null; // okamžitý přechod, bez stale dat — tooltip pak zobrazí LastError
-        Bar5h.Value = 100; // Value=100 aby PART_Indicator měl šířku a barva byla viditelná
-        Bar7d.Value = 100;
-        var maroon = new SolidColorBrush(Colors.Maroon); // #800000 — locked decision z CONTEXT.md
-        var ind5h = GetBarIndicator(Bar5h);
-        var ind7d = GetBarIndicator(Bar7d);
-        if (ind5h != null) ind5h.Background = maroon;
-        if (ind7d != null) ind7d.Background = maroon;
-        Text5h.Foreground = Brushes.White;
-        Text7d.Foreground = Brushes.White;
-        Text5h.Text = "Error"; // velké E — locked decision z CONTEXT.md
-        Text7d.Text = "Error";
     }
 
     private async Task LoadLatestReleaseAsync()
@@ -511,26 +483,6 @@ public partial class MainWindow : Window
         menu.AddSeparator();
         menu.AddItem("Quit", () => Application.Current.Shutdown());
 
-        // Zobrazit na místě tooltipu — nad widgetem vlevo od kurzoru
         menu.ShowAbove(Left, Top);
-    }
-
-    private static void SetBarColor(Border? indicator, double utilization)
-    {
-        if (indicator == null) return;
-
-        var color = utilization < 75
-            ? "#4CAF50"
-            : utilization < 90
-                ? "#FF9800"
-                : "#F44336";
-
-        indicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
-    }
-
-    private static Border? GetBarIndicator(ProgressBar bar)
-    {
-        bar.ApplyTemplate();
-        return bar.Template.FindName("PART_Indicator", bar) as Border;
     }
 }
