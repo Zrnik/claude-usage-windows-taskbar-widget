@@ -9,7 +9,7 @@ public partial class AccountPanel : UserControl
     private static readonly string[] SpinnerFrames = ["|", "/", "—", "\\"];
     private int _spinnerFrame;
 
-    public AccountPanel(ServiceType service)
+    internal AccountPanel(ServiceType service)
     {
         InitializeComponent();
         ServiceIcon.Source = new BitmapImage(new Uri(

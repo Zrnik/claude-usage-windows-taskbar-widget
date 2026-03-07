@@ -29,6 +29,7 @@ internal sealed class ClaudeApiClient : IDisposable
     private List<OAuthCredential> _credentials = [];
     private int _credentialIndex;
     private bool _noReload;
+    private readonly ServiceType _service;
 
     private OAuthCredential? _credential => _credentialIndex < _credentials.Count ? _credentials[_credentialIndex] : null;
 
@@ -39,7 +40,10 @@ internal sealed class ClaudeApiClient : IDisposable
         _credentials = [account.Credential];
         _credentialIndex = 0;
         _noReload = true;
+        _service = account.Service;
     }
+
+    public ServiceType AccountService => _service;
 
     public string CredentialPath => _credential?.SourcePath ?? "";
     public string? LastError { get; private set; }
