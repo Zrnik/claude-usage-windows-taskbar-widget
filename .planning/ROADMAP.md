@@ -61,4 +61,4 @@ Plans:
 | 2. Widget UI a pozicování | v0.1.9 | 3/3 | Complete | 2026-03-06 |
 | 3. Data a viditelnost | v0.1.9 | 3/3 | Complete | 2026-03-07 |
 | 4. Multi-account detekce | v0.1.10 | 3/3 | Complete | 2026-03-07 |
-| 5. Multi-account UI | v0.1.10 | 0/2 | Not started | - |
+| 5. Multi-account UI | 1/2 | In Progress|  | - |
