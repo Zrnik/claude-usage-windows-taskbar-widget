@@ -91,6 +91,7 @@ public partial class MainWindow : Window
     private DispatcherTimer? _textTimer;
     private DispatcherTimer? _visibilityTimer;
     private readonly List<(ClaudeApiClient Client, AccountPanel Panel, UsageData? LastUsage)> _accounts = [];
+    private readonly UsageHistoryStore _historyStore = UsageHistoryStore.Instance;
     private readonly IntPtr _taskbarHwnd;
     private readonly bool _isPrimary;
     private PopupWindow? _popup;
@@ -178,6 +179,7 @@ public partial class MainWindow : Window
                 {
                     _accounts[index] = (client, panel, usage);
                     panel.UpdateBars(usage);
+                    _historyStore.Append(client.AccountKey, usage);
                 }
                 else
                 {
@@ -309,6 +311,7 @@ public partial class MainWindow : Window
                 {
                     _accounts[i] = (client, panel, usage);
                     panel.UpdateBars(usage);
+                    _historyStore.Append(client.AccountKey, usage);
                 }
                 else
                 {
