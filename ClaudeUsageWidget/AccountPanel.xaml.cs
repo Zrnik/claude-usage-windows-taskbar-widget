@@ -8,6 +8,7 @@ public partial class AccountPanel : UserControl
 {
     private static readonly string[] SpinnerFrames = ["|", "/", "—", "\\"];
     private int _spinnerFrame;
+    private bool _isLoading;
 
     internal AccountPanel(ServiceType service)
     {
@@ -20,6 +21,7 @@ public partial class AccountPanel : UserControl
 
     public void UpdateBars(UsageData data)
     {
+        _isLoading = false;
         Text5h.Foreground = Brushes.White;
         Text7d.Foreground = Brushes.White;
 
@@ -43,6 +45,7 @@ public partial class AccountPanel : UserControl
 
     public void ShowLoadingState()
     {
+        _isLoading = true;
         Bar5h.Value = 0; Bar7d.Value = 0;
         Text5h.Text = SpinnerFrames[_spinnerFrame];
         Text7d.Text = SpinnerFrames[_spinnerFrame];
@@ -50,6 +53,7 @@ public partial class AccountPanel : UserControl
 
     public void AdvanceSpinner()
     {
+        if (!_isLoading) return;
         _spinnerFrame = (_spinnerFrame + 1) % SpinnerFrames.Length;
         Text5h.Text = SpinnerFrames[_spinnerFrame];
         Text7d.Text = SpinnerFrames[_spinnerFrame];
@@ -63,6 +67,7 @@ public partial class AccountPanel : UserControl
 
     public void ShowErrorState()
     {
+        _isLoading = false;
         Bar5h.Value = 100; Bar7d.Value = 100;
         var maroon = new SolidColorBrush(Colors.Maroon);
         var ind5h = GetBarIndicator(Bar5h);

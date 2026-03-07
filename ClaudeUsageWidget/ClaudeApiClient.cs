@@ -304,7 +304,16 @@ internal sealed class ClaudeApiClient : IDisposable
         {
             var token = account.Credential.AccessToken;
             var parts = token.Split('.');
-            if (parts.Length < 2) return null;
+            if (parts.Length < 2)
+            {
+                // Opaque token (sk-ant-oat01-...) — use source path as stable key
+                if (account.Service == ServiceType.Claude && !string.IsNullOrEmpty(token))
+                {
+                    var suffix = account.Credential.SourcePath.StartsWith("wsl:") ? "wsl" : "win";
+                    return "claude:" + suffix;
+                }
+                return null;
+            }
             var payload = parts[1];
             var padded = payload.PadRight((payload.Length + 3) / 4 * 4, '=')
                                 .Replace('-', '+').Replace('_', '/');

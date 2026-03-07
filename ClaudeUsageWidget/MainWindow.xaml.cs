@@ -77,6 +77,9 @@ public partial class MainWindow : Window
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
 
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
     private const uint ABM_GETTASKBARPOS = 0x5u;
     private const uint ABM_GETSTATE = 0x4u;
     private const int ABS_AUTOHIDE = 0x1;
@@ -213,9 +216,6 @@ public partial class MainWindow : Window
     {
         _spinnerTimer?.Stop();
         _spinnerTimer = null;
-        // Reset spinner textu — UpdateBars/ShowErrorState ihned přepíše správnou hodnotou
-        foreach (var (_, panel, _) in _accounts)
-            panel.ClearSpinner();
     }
 
     private double GetMonitorScale()
@@ -389,6 +389,16 @@ public partial class MainWindow : Window
         if (cls.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd"
             or "TaskListThumbnailWnd" or "MultitaskingViewFrame")
             return false;
+
+        // Explorer.exe owns taskbar, thumbnail strips and Aero Peek overlays — never treat as fullscreen
+        GetWindowThreadProcessId(foreground, out uint pid);
+        try
+        {
+            if (System.Diagnostics.Process.GetProcessById((int)pid).ProcessName
+                    .Equals("explorer", StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+        catch { /* process may have exited */ }
 
         var myMonitor = MonitorFromWindow(_taskbarHwnd, MONITOR_DEFAULTTONEAREST);
         var mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };

@@ -218,9 +218,17 @@ internal static class CredentialStore
         foreach (var cred in LoadAllCredentials())
         {
             var token = cred.AccessToken;
-            var key = GetAccountKey(token, ServiceType.Claude);
-            if (key == null) continue; // tiché přeskočení — žádný org_id v JWT
-            if (!seen.Add(key)) continue; // duplikát (např. WSL i Windows = stejný org)
+            if (string.IsNullOrEmpty(token)) continue;
+            // JWT org_id pro dedup (pokud jde parsovat)
+            var jwtId = GetJwtClaim(token, "org_id")
+                     ?? GetJwtClaim(token, "organization_id")
+                     ?? GetJwtClaim(token, "sub");
+            bool isOpaque = jwtId == null;
+            // Opaque token + expired = nelze identifikovat účet ani použít → přeskočit
+            if (isOpaque && cred.IsExpired) continue;
+
+            var dedupKey = "claude:" + (jwtId ?? cred.SourcePath);
+            if (!seen.Add(dedupKey)) continue;
 
             var label = cred.SourcePath.StartsWith("wsl:") ? "claude-wsl" : "claude-windows";
             result.Add(new AccountInfo(ServiceType.Claude, cred, label));
