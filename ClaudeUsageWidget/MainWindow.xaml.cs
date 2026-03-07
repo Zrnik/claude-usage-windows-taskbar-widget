@@ -360,13 +360,18 @@ public partial class MainWindow : Window
 
     private void ShowErrorState()
     {
-        Bar5h.Value = 0;
-        Bar7d.Value = 0;
-        var red = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
-        Text5h.Foreground = red;
-        Text7d.Foreground = red;
-        Text5h.Text = "error";
-        Text7d.Text = "error";
+        _lastUsage = null; // okamžitý přechod, bez stale dat — tooltip pak zobrazí LastError
+        Bar5h.Value = 100; // Value=100 aby PART_Indicator měl šířku a barva byla viditelná
+        Bar7d.Value = 100;
+        var maroon = new SolidColorBrush(Colors.Maroon); // #800000 — locked decision z CONTEXT.md
+        var ind5h = GetBarIndicator(Bar5h);
+        var ind7d = GetBarIndicator(Bar7d);
+        if (ind5h != null) ind5h.Background = maroon;
+        if (ind7d != null) ind7d.Background = maroon;
+        Text5h.Foreground = Brushes.White;
+        Text7d.Foreground = Brushes.White;
+        Text5h.Text = "Error"; // velké E — locked decision z CONTEXT.md
+        Text7d.Text = "Error";
     }
 
     private async Task LoadLatestReleaseAsync()
