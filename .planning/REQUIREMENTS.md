@@ -7,9 +7,9 @@
 
 ### Multi-account detekce
 
-- [ ] **MULTI-01**: Widget načte Claude credentials z Windows (`%USERPROFILE%\.claude\.credentials.json`) a WSL (`~/.claude/.credentials.json`) a deduplikuje účty podle org ID — stejné org ID = jedna sada barů
-- [ ] **MULTI-02**: Widget načte Codex credentials z `~/.codex/auth.json` (Windows i WSL)
-- [ ] **MULTI-03**: Každý unikátní účet (org ID) generuje vlastní sadu progress barů s vlastními API daty
+- [x] **MULTI-01**: Widget načte Claude credentials z Windows (`%USERPROFILE%\.claude\.credentials.json`) a WSL (`~/.claude/.credentials.json`) a deduplikuje účty podle org ID — stejné org ID = jedna sada barů
+- [x] **MULTI-02**: Widget načte Codex credentials z `~/.codex/auth.json` (Windows i WSL)
+- [x] **MULTI-03**: Každý unikátní účet (org ID) generuje vlastní sadu progress barů s vlastními API daty
 
 ### UI — ikony a layout
 
@@ -36,9 +36,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MULTI-01 | Phase 4 | Pending |
-| MULTI-02 | Phase 4 | Pending |
-| MULTI-03 | Phase 4 | Pending |
+| MULTI-01 | Phase 4 | Complete |
+| MULTI-02 | Phase 4 | Complete |
+| MULTI-03 | Phase 4 | Complete |
 | UI-07 | Phase 5 | Pending |
 | UI-08 | Phase 5 | Pending |
 | UI-09 | Phase 5 | Pending |
