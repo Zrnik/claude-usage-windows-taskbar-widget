@@ -84,6 +84,48 @@
 
 ---
 
+## Milestone: v0.1.11 — Usage History
+
+**Shipped:** 2026-03-07
+**Phases:** 3 (6-8) | **Plans:** 5 | **Sessions:** ~1 (1 session, ~2h)
+
+### What Was Built
+- Mutex field na App třídě — single instance enforcement, druhé spuštění zabíjí předchozí
+- Token 401 recovery s disk re-read, JWT-based dedup (org_id/sub), oprava spinner zaseknutí
+- UsageHistoryStore — hourly-bucket upsert do AppData JSON, atomic write, 14d rolling retention
+- HistoryChart UserControl — WPF Canvas sparkline, multicolor segmenty (zelená/oranžová/červená), fill polygon
+- PopupWindow 280px redesign — reset Grid (countdown vlevo, datum vpravo), embedded sparkline grafy
+
+### What Worked
+- Velmi rychlá exekuce (5 plánů za ~2h) — plány byly přesně specifikované, žádná překvapení
+- WPF Canvas + Polyline (built-in) pro sparkline byl správná volba — žádný NuGet, jednoduché API
+- Atomic write pattern (tmp + File.Move) byl přímočarý a fungoval na první pokus
+- JWT claim extraction refaktorovaná jako GetJwtClaim() helper — reuse mezi GetAccountKey() a GetJwtExpiryMs()
+- Checkpoint:human-verify pro vizuální ověření tooltipu — správné místo pro pause
+
+### What Was Inefficient
+- ExtractAccountKey() v ClaudeApiClient duplikuje logiku CredentialStore.GetAccountKey() — tech debt
+- Milestone neměl audit (`/gsd:audit-milestone`) — přeskočen pro rychlost, ale mohl odhalit integrační problémy dříve
+- ROADMAP.md měl `[ ]` checkboxy pro plány i po dokončení — tracking bug (SUMMARY.md správně existovaly)
+
+### Patterns Established
+- Mutex field na App třídě (ne lokální var) — GC-safe v Release buildu; vždy použít pro systémové prostředky
+- `GetJwtClaim(token, claimName)` helper — sdílená metoda pro JWT claims extraction
+- PadToLength zleva nulami pro sparkline — konzistentní X-škálování bez ohledu na počet dat
+- Hraniční bod sdílený mezi sousedními barevnými segmenty — plynulý vizuální přechod
+
+### Key Lessons
+1. Mutex v Release buildu může být sbírán GC pokud je lokální proměnná — vždy field na dlouhověkém objektu
+2. WPF Canvas sparkline: přiřadit PointCollection jednou (ne Add() v cyklu) pro výkon; OnRenderSizeChanged + SizeChanged pro re-render
+3. Atomic write pro JSON persistence: WriteAllText(tmp) + File.Move(tmp, target, overwrite:true) — jednoduchý a crash-safe
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 1 session (~2h)
+- Notable: Nejrychlejší milestone — jasné requirements + dobrá architektura = minimální friction
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -92,6 +134,7 @@
 |-----------|----------|--------|------------|
 | v0.1.9 MVP | ~3 | 3 | First milestone — baseline |
 | v0.1.10 Multi-account | ~2 | 2 | Multi-account + Codex support |
+| v0.1.11 Usage History | 1 | 3 | History persistence + sparkline charts + stability fixes |
 
 ### Cumulative Quality
 
@@ -99,3 +142,10 @@
 |-----------|-----------|--------|--------|
 | v0.1.9 | 8 (Phase 2) | 8/8 | 0 |
 | v0.1.10 | manual verify (Phase 4+5) | passed | 0 |
+| v0.1.11 | manual verify (Phase 8 checkpoint) | passed | 0 |
+
+### Top Lessons (Verified Across Milestones)
+
+1. Stub-first approach (kontrakty v Task 1, implementace v Task 2) — bezpečné postupné budování bez broken builds
+2. Systémové prostředky (Mutex, Handles) musí být fields na dlouhověkých objektech — GC pitfall v Release builds
+3. Atomic write (tmp + File.Move) — jednoduchý, crash-safe pattern pro veškerou JSON persistenci
