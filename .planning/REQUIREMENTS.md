@@ -19,8 +19,8 @@
 - [x] **POS-01**: Widget se umisťuje co nejdál vpravo na taskbaru, těsně před system tray oblastí
 - [x] **POS-02**: Widget sleduje změny šířky tray oblasti a přepočítá pozici dynamicky
 - [x] **POS-03**: Widget zůstává always-on-top (pokud není skrytý)
-- [ ] **VIS-01**: Když je taskbar nastaven jako auto-hide a zajede dolů, widget se skryje společně s ním
-- [ ] **VIS-02**: Když běží fullscreen aplikace (hra, video), widget se automaticky skryje a vrátí se po opuštění fullscreenu
+- [x] **VIS-01**: Když je taskbar nastaven jako auto-hide a zajede dolů, widget se skryje společně s ním
+- [x] **VIS-02**: Když běží fullscreen aplikace (hra, video), widget se automaticky skryje a vrátí se po opuštění fullscreenu
 
 ### Data
 
@@ -80,8 +80,8 @@
 | DATA-02 | Phase 3 | Complete |
 | DATA-03 | Phase 3 | Complete |
 | DATA-04 | Phase 3 | Complete |
-| VIS-01 | Phase 3 | Pending |
-| VIS-02 | Phase 3 | Pending |
+| VIS-01 | Phase 3 | Complete |
+| VIS-02 | Phase 3 | Complete |
 | LIFE-01 | Phase 2 | Complete |
 | LIFE-02 | Phase 1 | Complete |
 | LIFE-03 | Phase 2 | Complete |

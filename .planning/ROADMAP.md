@@ -67,4 +67,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Cleanup | 1/1 | Complete   | 2026-03-06 |
 | 2. Widget UI a pozicování | 3/3 | Complete   | 2026-03-06 |
-| 3. Data a viditelnost | 1/3 | In Progress|  |
+| 3. Data a viditelnost | 2/3 | In Progress|  |

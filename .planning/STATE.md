@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-data-a-viditelnost-03-01-PLAN.md
-last_updated: "2026-03-07T07:56:08.150Z"
+stopped_at: Completed 03-data-a-viditelnost-03-02-PLAN.md
+last_updated: "2026-03-07T07:58:50.907Z"
 last_activity: 2026-03-06 — Roadmap vytvořen
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-widget-ui-a-pozicovani P02 | 5 | 1 tasks | 1 files |
 | Phase 02-widget-ui-a-pozicovani P03 | 15 | 2 tasks | 3 files |
 | Phase 03-data-a-viditelnost P01 | 1 | 2 tasks | 1 files |
+| Phase 03-data-a-viditelnost P02 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 03-data-a-viditelnost]: Colors.Maroon pro error stav — locked decision, Bar.Value=100 aby PART_Indicator byl viditelný
 - [Phase 03-data-a-viditelnost]: _lastUsage = null jako první příkaz ShowErrorState() eliminuje stale data
 - [Phase 03-data-a-viditelnost]: Unconditional else ShowErrorState() v refresh timeru — stale data bug odstraněn
+- [Phase 03-data-a-viditelnost]: Stub CheckVisibility() v Task 1 pro green build — replaced plnou implementací v Task 2
+- [Phase 03-data-a-viditelnost]: IsFullscreenOnMyMonitor porovnává foreground window s rcMonitor (fyzické rozměry), ne rcWork
 
 ### Pending Todos
 
@@ -84,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T07:56:08.130Z
-Stopped at: Completed 03-data-a-viditelnost-03-01-PLAN.md
+Last session: 2026-03-07T07:58:50.887Z
+Stopped at: Completed 03-data-a-viditelnost-03-02-PLAN.md
 Resume file: None
