@@ -79,5 +79,5 @@ Plans:
 | 4. Multi-account Arch | v0.1.10 | - | Complete | 2026-03-07 |
 | 5. Multi-account UI | v0.1.10 | - | Complete | 2026-03-07 |
 | 6. Stability | 2/2 | Complete   | 2026-03-07 | - |
-| 7. History Persistence | v0.1.11 | 0/1 | Not started | - |
+| 7. History Persistence | 1/1 | Complete   | 2026-03-07 | - |
 | 8. Tooltip & Chart | v0.1.11 | 0/2 | Not started | - |

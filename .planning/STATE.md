@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-stability/06-02-PLAN.md
-last_updated: "2026-03-07T16:54:43.800Z"
-last_activity: 2026-03-07 — Completed 06-01 Single Instance Enforcement
+stopped_at: Completed 07-01 UsageHistoryStore
+last_updated: "2026-03-07T17:13:00.000Z"
+last_activity: 2026-03-07 — Completed 07-01 UsageHistoryStore
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 3
+  completed_plans: 3
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Okamžitě viditelné vytížení Claude limitů přímo v taskbaru — bez klikání, bez otevírání oken.
-**Current focus:** Phase 6 — Stability
+**Current focus:** Phase 7 — History Persistence
 
 ## Current Position
 
-Phase: 6 of 8 (Stability)
-Plan: 1 of 2 in current phase (06-01 complete)
+Phase: 7 of 8 (History Persistence)
+Plan: 1 of 1 in current phase (07-01 complete)
 Status: In progress
-Last activity: 2026-03-07 — Completed 06-01 Single Instance Enforcement
+Last activity: 2026-03-07 — Completed 07-01 UsageHistoryStore
 
-Progress (v0.1.11): [█████████░] 89%
+Progress (v0.1.12): [█████████░] 91%
 
 ## Accumulated Context
 
@@ -47,6 +47,9 @@ Klíčové pro v0.1.11 (z research):
 - [Phase 06-stability]: LoadCredentialFromPath() jako jediná public cesta k disk re-read per path
 - [Phase 06-stability]: JWT dedup: GetAccountKey() vrací null pro credentials bez dekódovatelného JWT — tiché přeskočení
 - [Phase 06-stability]: ClearSpinner() nastavuje prázdný string — UpdateBars/ShowErrorState přepíše správnou hodnotou
+- [Phase 07-history-persistence]: ExtractAccountKey() duplikuje logiku z CredentialStore — private metoda nemůže být sdílena bez refactoru mimo scope
+- [Phase 07-history-persistence]: Singleton UsageHistoryStore.Instance — žádné DI, přímý přístup z MainWindow
+- [Phase 07-history-persistence]: Atomic write pattern potvrzen: tmp + Move(overwrite:true)
 
 ### Pending Todos
 
@@ -55,7 +58,7 @@ Klíčové pro v0.1.11 (z research):
 
 ### Blockers/Concerns
 
-- History file: HIST-02 říká per-account soubor — rozhodnutí potvrdit v Phase 7
+- (resolved) History file: HIST-02 per-account soubor — potvrzeno implementací v Phase 7
 
 ### Known Tech Debt
 
@@ -63,6 +66,6 @@ Klíčové pro v0.1.11 (z research):
 
 ## Session Continuity
 
-Last session: 2026-03-07T16:50:45.210Z
-Stopped at: Completed 06-stability/06-02-PLAN.md
-Resume file: None
+Last session: 2026-03-07T17:13:00.000Z
+Stopped at: Completed 07-01 UsageHistoryStore
+Resume file: .planning/phases/07-history-persistence/07-01-SUMMARY.md

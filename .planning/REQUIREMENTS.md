@@ -14,10 +14,10 @@
 
 ### History Persistence
 
-- [ ] **HIST-01**: Widget ukládá utilization hodnoty do AppData JSON při každém API callu (hourly bucket — upsert)
-- [ ] **HIST-02**: History soubor pojmenován klíčem účtu (dle STAB-03)
-- [ ] **HIST-03**: JSON se zapisuje atomicky (tmp soubor + File.Move)
-- [ ] **HIST-04**: Automaticky se ořezává na 14 dní (~336 záznamů na účet)
+- [x] **HIST-01**: Widget ukládá utilization hodnoty do AppData JSON při každém API callu (hourly bucket — upsert)
+- [x] **HIST-02**: History soubor pojmenován klíčem účtu (dle STAB-03)
+- [x] **HIST-03**: JSON se zapisuje atomicky (tmp soubor + File.Move)
+- [x] **HIST-04**: Automaticky se ořezává na 14 dní (~336 záznamů na účet)
 
 ### Tooltip & Chart
 
@@ -49,10 +49,10 @@
 | STAB-02 | Phase 6 | Complete |
 | STAB-03 | Phase 6 | Complete |
 | STAB-04 | Phase 6 | Complete |
-| HIST-01 | Phase 7 | Pending |
-| HIST-02 | Phase 7 | Pending |
-| HIST-03 | Phase 7 | Pending |
-| HIST-04 | Phase 7 | Pending |
+| HIST-01 | Phase 7 | Complete |
+| HIST-02 | Phase 7 | Complete |
+| HIST-03 | Phase 7 | Complete |
+| HIST-04 | Phase 7 | Complete |
 | TOOL-01 | Phase 8 | Pending |
 | TOOL-02 | Phase 8 | Pending |
 | TOOL-03 | Phase 8 | Pending |
