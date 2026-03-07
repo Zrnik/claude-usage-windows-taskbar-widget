@@ -114,11 +114,18 @@ internal sealed class ClaudeApiClient : IDisposable
                 catch { }
             }
 
-            // Try next credential source
-            if (_credentialIndex + 1 < _credentials.Count)
+            // Refresh selhal — přečti credentials z disku (platí i pro _noReload instance)
+            var sourcePath = _credential?.SourcePath;
+            if (!string.IsNullOrEmpty(sourcePath))
             {
-                _credentialIndex++;
-                return await GetUsageAsync(forceRefresh: true);
+                var freshCred = CredentialStore.LoadCredentialFromPath(sourcePath);
+                if (freshCred != null && freshCred.AccessToken != _credential!.AccessToken)
+                {
+                    // Nový token — použij ho a zkus znova
+                    _credentials[_credentialIndex] = freshCred;
+                    return await GetUsageAsync(forceRefresh: true);
+                }
+                // Stejný token → error stav (nezasekáváme se)
             }
 
             LastError = "Invalid credentials — re-login with Claude CLI";

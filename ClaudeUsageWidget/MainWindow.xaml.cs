@@ -208,6 +208,9 @@ public partial class MainWindow : Window
     {
         _spinnerTimer?.Stop();
         _spinnerTimer = null;
+        // Reset spinner textu — UpdateBars/ShowErrorState ihned přepíše správnou hodnotou
+        foreach (var (_, panel, _) in _accounts)
+            panel.ClearSpinner();
     }
 
     private double GetMonitorScale()

@@ -55,6 +55,12 @@ public partial class AccountPanel : UserControl
         Text7d.Text = SpinnerFrames[_spinnerFrame];
     }
 
+    public void ClearSpinner()
+    {
+        Text5h.Text = "";
+        Text7d.Text = "";
+    }
+
     public void ShowErrorState()
     {
         Bar5h.Value = 100; Bar7d.Value = 100;

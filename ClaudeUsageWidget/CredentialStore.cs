@@ -218,8 +218,9 @@ internal static class CredentialStore
         foreach (var cred in LoadAllCredentials())
         {
             var token = cred.AccessToken;
-            var key = "claude:" + token[..Math.Min(32, token.Length)];
-            if (!seen.Add(key)) continue;
+            var key = GetAccountKey(token, ServiceType.Claude);
+            if (key == null) continue; // tiché přeskočení — žádný org_id v JWT
+            if (!seen.Add(key)) continue; // duplikát (např. WSL i Windows = stejný org)
 
             var label = cred.SourcePath.StartsWith("wsl:") ? "claude-wsl" : "claude-windows";
             result.Add(new AccountInfo(ServiceType.Claude, cred, label));
@@ -228,8 +229,9 @@ internal static class CredentialStore
         foreach (var account in LoadCodexCredentials())
         {
             var token = account.Credential.AccessToken;
-            var key = "codex:" + token[..Math.Min(32, token.Length)];
-            if (!seen.Add(key)) continue;
+            var key = GetAccountKey(token, ServiceType.Codex);
+            if (key == null) continue; // tiché přeskočení
+            if (!seen.Add(key)) continue; // duplikát (např. WSL i Windows = stejný org)
 
             result.Add(account);
         }
@@ -336,5 +338,46 @@ internal static class CredentialStore
             return exp > 0 ? exp * 1000L : long.MaxValue;
         }
         catch { return long.MaxValue; }
+    }
+
+    private static string? GetJwtClaim(string jwt, string claimName)
+    {
+        try
+        {
+            var parts = jwt.Split('.');
+            if (parts.Length < 2) return null;
+            var payload = parts[1];
+            var padded = payload.PadRight((payload.Length + 3) / 4 * 4, '=')
+                                .Replace('-', '+').Replace('_', '/');
+            var bytes = Convert.FromBase64String(padded);
+            var doc = JsonNode.Parse(System.Text.Encoding.UTF8.GetString(bytes));
+            return doc?[claimName]?.GetValue<string>();
+        }
+        catch { return null; }
+    }
+
+    private static string? GetAccountKey(string token, ServiceType service)
+    {
+        if (service == ServiceType.Claude)
+        {
+            // Pokus o org_id, fallback na sub (standard JWT claim)
+            var orgId = GetJwtClaim(token, "org_id")
+                     ?? GetJwtClaim(token, "organization_id")
+                     ?? GetJwtClaim(token, "sub");
+            return orgId != null ? "claude:" + orgId : null;
+        }
+        else // Codex
+        {
+            var accountId = GetJwtClaim(token, "account_id")
+                         ?? GetJwtClaim(token, "sub");
+            return accountId != null ? "codex:" + accountId : null;
+        }
+    }
+
+    public static OAuthCredential? LoadCredentialFromPath(string sourcePath)
+    {
+        if (sourcePath == WslSourceMarker)
+            return TryReadWslCredential();
+        return TryReadCredential(sourcePath);
     }
 }
