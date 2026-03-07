@@ -104,9 +104,17 @@ public partial class PopupWindow : Window
                 resetGrid.Children.Add(countdown);
                 resetGrid.Children.Add(resetDate);
 
+                var chart = new HistoryChart { Margin = new Thickness(0, 2, 0, 6) };
+                if (accountKey != null)
+                {
+                    var history = UsageHistoryStore.Instance.GetUtilizationHistory(accountKey, limit.Label);
+                    chart.SetData(history, limit.Label);
+                }
+
                 LimitsPanel.Children.Add(label);
                 LimitsPanel.Children.Add(barContainer);
                 LimitsPanel.Children.Add(resetGrid);
+                LimitsPanel.Children.Add(chart);
             }
         }
 

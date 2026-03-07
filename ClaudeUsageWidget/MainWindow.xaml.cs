@@ -386,7 +386,8 @@ public partial class MainWindow : Window
         // Desktop/shell windows cover full screen but aren't "fullscreen apps"
         var cls = new System.Text.StringBuilder(256);
         GetClassName(foreground, cls, 256);
-        if (cls.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd")
+        if (cls.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd"
+            or "TaskListThumbnailWnd" or "MultitaskingViewFrame")
             return false;
 
         var myMonitor = MonitorFromWindow(_taskbarHwnd, MONITOR_DEFAULTTONEAREST);
@@ -426,7 +427,7 @@ public partial class MainWindow : Window
         }
         const double ColWidth = 170.0;
         _popup.UpdateAndShow(lastUsage, client.LastError, client.CredentialPath,
-            Left + index * ColWidth, Top);
+            Left + index * ColWidth, Top, client.AccountKey);
     }
 
     private void HidePopup()
