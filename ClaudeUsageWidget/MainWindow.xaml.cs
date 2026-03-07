@@ -74,6 +74,9 @@ public partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
+
     private const uint ABM_GETTASKBARPOS = 0x5u;
     private const uint ABM_GETSTATE = 0x4u;
     private const int ABS_AUTOHIDE = 0x1;
@@ -379,6 +382,12 @@ public partial class MainWindow : Window
     {
         var foreground = GetForegroundWindow();
         if (foreground == IntPtr.Zero) return false;
+
+        // Desktop/shell windows cover full screen but aren't "fullscreen apps"
+        var cls = new System.Text.StringBuilder(256);
+        GetClassName(foreground, cls, 256);
+        if (cls.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd")
+            return false;
 
         var myMonitor = MonitorFromWindow(_taskbarHwnd, MONITOR_DEFAULTTONEAREST);
         var mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
