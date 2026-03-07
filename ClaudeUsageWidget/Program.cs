@@ -51,21 +51,35 @@ internal class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        var apiClient = new ClaudeApiClient();
+        // Načíst všechny unikátní účty (Claude Windows+WSL deduplikováno, Codex)
+        var accounts = CredentialStore.LoadAllAccounts();
 
-        Exit += (_, _) => apiClient.Dispose();
+        // Fallback: žádné credentials → jeden client v error stavu
+        if (accounts.Count == 0)
+            accounts.Add(new AccountInfo(ServiceType.Claude, new OAuthCredential(), "no-credentials"));
+
+        var clients = accounts.Select(a => new ClaudeApiClient(a)).ToList();
+
+        Exit += (_, _) =>
+        {
+            foreach (var c in clients) c.Dispose();
+        };
 
         var primaryHwnd = FindWindow("Shell_TrayWnd", null);
-        var primaryWindow = new MainWindow(apiClient, primaryHwnd, isPrimary: true);
+
+        // Primární okno = první účet
+        var primaryWindow = new MainWindow(clients[0], primaryHwnd, isPrimary: true);
         MainWindow = primaryWindow;
         primaryWindow.Show();
 
+        // Pro každý sekundární taskbar: zobrazit první účet
+        // (Phase 5 změní layout na horizontální řadu per-taskbar)
         EnumWindows((hwnd, _) =>
         {
             var sb = new StringBuilder(64);
             GetClassName(hwnd, sb, 64);
             if (sb.ToString() == "Shell_SecondaryTrayWnd")
-                new MainWindow(apiClient, hwnd, isPrimary: false).Show();
+                new MainWindow(clients[0], hwnd, isPrimary: false).Show();
             return true;
         }, IntPtr.Zero);
     }
