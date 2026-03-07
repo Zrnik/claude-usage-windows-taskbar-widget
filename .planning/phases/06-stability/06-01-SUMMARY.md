@@ -86,6 +86,13 @@ None — plan executed exactly as written.
 - Single instance enforcement hotovo, widget nebude spouštět duplicitní instance
 - Připraveno pro Phase 06-02 (401 recovery + backoff)
 
+## Self-Check: PASSED
+
+- FOUND: .planning/phases/06-stability/06-01-SUMMARY.md
+- FOUND: ClaudeUsageWidget/Program.cs
+- FOUND: commit eddb9ba (feat task)
+- FOUND: commit 5aaad86 (docs metadata)
+
 ---
 *Phase: 06-stability*
 *Completed: 2026-03-07*
