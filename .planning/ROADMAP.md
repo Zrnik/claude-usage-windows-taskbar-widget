@@ -18,7 +18,7 @@
 
 **v0.1.10 Multi-account:**
 
-- [ ] **Phase 4: Multi-account detekce** — Widget načítá a deduplikuje účty z Windows + WSL pro Claude i Codex
+- [x] **Phase 4: Multi-account detekce** — Widget načítá a deduplikuje účty z Windows + WSL pro Claude i Codex
 - [ ] **Phase 5: Multi-account UI** — Widget zobrazuje více sad barů horizontálně s ikonami služeb
 
 ## Phase Details
@@ -35,9 +35,9 @@
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — ServiceType, AccountInfo, LoadAllAccounts() + Codex credential loading (CredentialStore)
-- [ ] 04-02-PLAN.md — Per-account konstruktor ClaudeApiClient(AccountInfo) + _noReload fix
-- [ ] 04-03-PLAN.md — Per-account MainWindow instantiation v Program.cs + manuální verifikace
+- [x] 04-01-PLAN.md — ServiceType, AccountInfo, LoadAllAccounts() + Codex credential loading (CredentialStore)
+- [x] 04-02-PLAN.md — Per-account konstruktor ClaudeApiClient(AccountInfo) + _noReload fix
+- [x] 04-03-PLAN.md — Per-account MainWindow instantiation v Program.cs + manuální verifikace
 
 ### Phase 5: Multi-account UI
 **Goal**: Widget vizuálně prezentuje více účtů jako horizontální řadu sloupců s ikonou identifikující službu
@@ -56,5 +56,5 @@ Plans:
 | 1. Cleanup | v0.1.9 | 1/1 | Complete | 2026-03-06 |
 | 2. Widget UI a pozicování | v0.1.9 | 3/3 | Complete | 2026-03-06 |
 | 3. Data a viditelnost | v0.1.9 | 3/3 | Complete | 2026-03-07 |
-| 4. Multi-account detekce | 2/3 | In Progress|  | - |
+| 4. Multi-account detekce | v0.1.10 | 3/3 | Complete | 2026-03-07 |
 | 5. Multi-account UI | v0.1.10 | 0/? | Not started | - |
