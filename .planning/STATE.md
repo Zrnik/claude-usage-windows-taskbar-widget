@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: planning
-stopped_at: Completed 03-data-a-viditelnost-03-03-PLAN.md
-last_updated: "2026-03-07T11:21:48.591Z"
-last_activity: 2026-03-06 — Roadmap vytvořen
+milestone: v0.1.10
+milestone_name: Multi-account
+status: roadmap_ready
+stopped_at: Roadmap created, ready for Phase 4 planning
+last_updated: "2026-03-07T00:00:00.000Z"
+last_activity: 2026-03-07 — Roadmap pro v0.1.10 vytvořen (2 fáze, 6 requirements)
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_phases: 2
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -18,77 +18,39 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-06)
+See: .planning/PROJECT.md (updated 2026-03-07)
 
-**Core value:** Okamžitě viditelné vytížení Claude limitů přímo v taskbaru — bez klikání, bez otevírání oken.
-**Current focus:** Phase 1 - Cleanup
+**Core value:** Okamžitě viditelné vytížení Claude a Codex limitů přímo v taskbaru — bez klikání, bez otevírání oken.
+**Current focus:** v0.1.10 Multi-account — Phase 4: Multi-account detekce
 
 ## Current Position
 
-Phase: 1 of 3 (Cleanup)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-06 — Roadmap vytvořen
+Phase: 4 — Multi-account detekce
+Status: Not started (roadmap ready)
+Last activity: 2026-03-07 — Roadmap pro v0.1.10 vytvořen
 
-Progress: [░░░░░░░░░░] 0%
-
-## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
-
-**Recent Trend:**
-- Last 5 plans: -
-- Trend: -
-
-*Updated after each plan completion*
-| Phase 01-cleanup P01 | 4 | 2 tasks | 11 files |
-| Phase 02-widget-ui-a-pozicovani P01 | 15 | 2 tasks | 4 files |
-| Phase 02-widget-ui-a-pozicovani P02 | 5 | 1 tasks | 1 files |
-| Phase 02-widget-ui-a-pozicovani P03 | 15 | 2 tasks | 3 files |
-| Phase 03-data-a-viditelnost P01 | 1 | 2 tasks | 1 files |
-| Phase 03-data-a-viditelnost P02 | 5 | 2 tasks | 1 files |
-| Phase 03-data-a-viditelnost P03 | manual | 1 tasks | 0 files |
+Progress: [----------] 0%
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Přístup: Borderless WPF window místo Windows Widgets panel (pending potvrzení)
-- WPF vs WinForms: WPF preferováno pro lepší custom rendering progress barů (pending)
-- [Phase 01-cleanup]: GlobalUsings.cs pouzit pro System.IO + System.Net.Http misto upravy existujicich souboru
-- [Phase 01-cleanup]: TimeFormatter umisten do Program.cs pro jednoduchost
-- [Phase 02-widget-ui-a-pozicovani]: UsageData zmenen na public class pro kompatibilitu s public UpdateBars(UsageData) v MainWindow
-- [Phase 02-widget-ui-a-pozicovani]: Loaded event handler pro PositionWindow — PresentationSource.FromVisual vyzaduje okno v DOM
-- [Phase 02-widget-ui-a-pozicovani]: MainWindow konstruktor internal kuli internal ClaudeApiClient parametru
-- [Phase 03-data-a-viditelnost]: Colors.Maroon pro error stav — locked decision, Bar.Value=100 aby PART_Indicator byl viditelný
-- [Phase 03-data-a-viditelnost]: _lastUsage = null jako první příkaz ShowErrorState() eliminuje stale data
-- [Phase 03-data-a-viditelnost]: Unconditional else ShowErrorState() v refresh timeru — stale data bug odstraněn
-- [Phase 03-data-a-viditelnost]: Stub CheckVisibility() v Task 1 pro green build — replaced plnou implementací v Task 2
-- [Phase 03-data-a-viditelnost]: IsFullscreenOnMyMonitor porovnává foreground window s rcMonitor (fyzické rozměry), ne rcWork
-- [Phase 03-data-a-viditelnost]: Credentials se načítají z disku při každém API callu — zabraňuje stale token bugu po rotaci
+Viz PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-None yet.
+- Spustit `/gsd:plan-phase 4` pro první fázi
 
 ### Blockers/Concerns
 
-- `ClaudeApiClient.cs` nebyl od přepisu testován — nutno ověřit po cleanup fázi
+None.
+
+### Known Tech Debt
+
+- Phase 02 nemá VERIFICATION.md — dokumentační problém, implementace funguje (zaznamenáno v MILESTONES.md)
 
 ## Session Continuity
 
-Last session: 2026-03-07T08:09:30.111Z
-Stopped at: Completed 03-data-a-viditelnost-03-03-PLAN.md
+Last session: 2026-03-07
+Stopped at: Roadmap v0.1.10 vytvořen
 Resume file: None
