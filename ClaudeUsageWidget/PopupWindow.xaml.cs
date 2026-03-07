@@ -39,7 +39,7 @@ public partial class PopupWindow : Window
     }
 
     public void UpdateAndShow(UsageData? data, string? errorMessage, string credentialPath,
-        double widgetLeft, double widgetTop)
+        double widgetLeft, double widgetTop, string? accountKey = null)
     {
         LimitsPanel.Children.Clear();
 
@@ -81,26 +81,32 @@ public partial class PopupWindow : Window
                 barContainer.Children.Add(fill);
                 barContainer.Children.Add(pctOverlay);
 
-                var resetIn = new TextBlock
+                var resetGrid = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+                resetGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                resetGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var countdown = new TextBlock
                 {
                     Text = $"Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}",
                     Foreground = Brushes.LightGray,
-                    FontSize = 9,
-                    Margin = new Thickness(0, 0, 0, 1)
+                    FontSize = 9
                 };
+                Grid.SetColumn(countdown, 0);
 
-                var resetAt = new TextBlock
+                var resetDate = new TextBlock
                 {
                     Text = limit.ResetsAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
                     Foreground = Brushes.Gray,
-                    FontSize = 9,
-                    Margin = new Thickness(0, 0, 0, 6)
+                    FontSize = 9
                 };
+                Grid.SetColumn(resetDate, 1);
+
+                resetGrid.Children.Add(countdown);
+                resetGrid.Children.Add(resetDate);
 
                 LimitsPanel.Children.Add(label);
                 LimitsPanel.Children.Add(barContainer);
-                LimitsPanel.Children.Add(resetIn);
-                LimitsPanel.Children.Add(resetAt);
+                LimitsPanel.Children.Add(resetGrid);
             }
         }
 
@@ -114,7 +120,7 @@ public partial class PopupWindow : Window
                 Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36)),
                 FontSize = 9,
                 TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 220
+                MaxWidth = 260
             });
         }
 
@@ -127,7 +133,7 @@ public partial class PopupWindow : Window
                 Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
                 FontSize = 8,
                 TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 220
+                MaxWidth = 260
             });
         }
 

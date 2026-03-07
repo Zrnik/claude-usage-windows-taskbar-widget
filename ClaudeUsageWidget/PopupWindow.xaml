@@ -9,7 +9,7 @@
         AllowsTransparency="True"
         Background="Transparent"
         SizeToContent="Height"
-        Width="170"
+        Width="280"
         Title="Claude Usage Widget Popup">
     <Border Background="#1C1C1C" CornerRadius="6" Padding="10,8">
         <StackPanel x:Name="LimitsPanel"/>
