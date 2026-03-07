@@ -19,7 +19,7 @@
 **v0.1.10 Multi-account:**
 
 - [x] **Phase 4: Multi-account detekce** — Widget načítá a deduplikuje účty z Windows + WSL pro Claude i Codex
-- [ ] **Phase 5: Multi-account UI** — Widget zobrazuje více sad barů horizontálně s ikonami služeb
+- [x] **Phase 5: Multi-account UI** — Widget zobrazuje více sad barů horizontálně s ikonami služeb (completed 2026-03-07)
 
 ## Phase Details
 
@@ -61,4 +61,4 @@ Plans:
 | 2. Widget UI a pozicování | v0.1.9 | 3/3 | Complete | 2026-03-06 |
 | 3. Data a viditelnost | v0.1.9 | 3/3 | Complete | 2026-03-07 |
 | 4. Multi-account detekce | v0.1.10 | 3/3 | Complete | 2026-03-07 |
-| 5. Multi-account UI | 1/2 | In Progress|  | - |
+| 5. Multi-account UI | 2/2 | Complete   | 2026-03-07 | - |

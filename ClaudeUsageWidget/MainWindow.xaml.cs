@@ -173,7 +173,6 @@ public partial class MainWindow : Window
             {
                 var usage = await task;
                 var (client, panel, _) = _accounts[index];
-                StopSpinnerIfAllLoaded();
                 if (usage != null)
                 {
                     _accounts[index] = (client, panel, usage);
@@ -185,6 +184,7 @@ public partial class MainWindow : Window
                 }
             }
 
+            StopSpinner();
             StartRefreshTimer();
             StartTextTimer();
             StartVisibilityTimer();
@@ -201,12 +201,6 @@ public partial class MainWindow : Window
                 panel.AdvanceSpinner();
         };
         _spinnerTimer.Start();
-    }
-
-    private void StopSpinnerIfAllLoaded()
-    {
-        // called after each account loads — stop only when all are done
-        // spinner is stopped separately after the await loop
     }
 
     private void StopSpinner()
