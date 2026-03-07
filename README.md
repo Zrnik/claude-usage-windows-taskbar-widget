@@ -35,7 +35,15 @@ Usage data is fetched by calling `api.anthropic.com/v1/messages` with a minimal 
 - `anthropic-ratelimit-unified-5h-reset`
 - `anthropic-ratelimit-unified-7d-reset`
 
-Progress bar color: green (< 75%), yellow (75–90%), red (≥ 90%).
+Progress bar color: green (< 75%), orange (75–90%), red (≥ 90%).
+
+If the API call fails, both bars turn dark red (maroon) and show "Error". The widget auto-retries every minute.
+
+The widget automatically hides when:
+- The taskbar is set to auto-hide and slides down
+- A fullscreen application is running on the same monitor
+
+It reappears when the taskbar comes back or the fullscreen app is closed.
 
 ---
 

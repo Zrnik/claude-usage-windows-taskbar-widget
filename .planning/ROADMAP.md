@@ -8,7 +8,7 @@ Tři fáze: nejprve vyčistit existující codebase od MSIX/Widget provider kód
 
 - [x] **Phase 1: Cleanup** - Odstranit MSIX/Widget provider kód, připravit čisté WPF exe (completed 2026-03-06)
 - [x] **Phase 2: Widget UI a pozicování** - Borderless okno s progress bary, správně umístěné v taskbaru (completed 2026-03-06)
-- [ ] **Phase 3: Data a viditelnost** - Živá API data, auto-hide a fullscreen podpora
+- [x] **Phase 3: Data a viditelnost** - Živá API data, auto-hide a fullscreen podpora (completed 2026-03-07)
 
 ## Phase Details
 
@@ -67,4 +67,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Cleanup | 1/1 | Complete   | 2026-03-06 |
 | 2. Widget UI a pozicování | 3/3 | Complete   | 2026-03-06 |
-| 3. Data a viditelnost | 2/3 | In Progress|  |
+| 3. Data a viditelnost | 2/3 | Complete    | 2026-03-07 |
