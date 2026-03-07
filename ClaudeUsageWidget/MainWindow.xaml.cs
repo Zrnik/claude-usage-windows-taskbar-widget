@@ -73,7 +73,12 @@ public partial class MainWindow : Window
         public uint dwFlags;
     }
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
     private const uint ABM_GETTASKBARPOS = 0x5u;
+    private const uint ABM_GETSTATE = 0x4u;
+    private const int ABS_AUTOHIDE = 0x1;
     private const uint ABE_BOTTOM = 3u;
     private const uint MONITOR_DEFAULTTONEAREST = 2;
     private const int MDT_EFFECTIVE_DPI = 0;
@@ -86,6 +91,7 @@ public partial class MainWindow : Window
     private DispatcherTimer? _spinnerTimer;
     private DispatcherTimer? _refreshTimer;
     private DispatcherTimer? _textTimer;
+    private DispatcherTimer? _visibilityTimer;
     private int _spinnerFrame;
     private static readonly string[] SpinnerFrames = ["|", "/", "—", "\\"];
     private readonly ClaudeApiClient _apiClient;
@@ -121,6 +127,7 @@ public partial class MainWindow : Window
             _popup?.Close();
             _refreshTimer?.Stop();
             _textTimer?.Stop();
+            _visibilityTimer?.Stop();
         };
     }
 
@@ -162,6 +169,7 @@ public partial class MainWindow : Window
 
             StartRefreshTimer();
             StartTextTimer();
+            StartVisibilityTimer();
             _ = LoadLatestReleaseAsync();
         };
     }
@@ -269,6 +277,15 @@ public partial class MainWindow : Window
         _textTimer.Tick += (_, _) => RefreshText();
         _textTimer.Start();
     }
+
+    private void StartVisibilityTimer()
+    {
+        _visibilityTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _visibilityTimer.Tick += (_, _) => CheckVisibility();
+        _visibilityTimer.Start();
+    }
+
+    private void CheckVisibility() { }
 
     private void RefreshText()
     {
