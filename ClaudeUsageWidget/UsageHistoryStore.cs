@@ -17,7 +17,7 @@ internal sealed class UsageHistoryStore
     private static readonly JsonSerializerOptions SerializerOptions =
         new() { WriteIndented = false };
 
-    private const int MaxRecords = 336; // 14 dní × 24 hodin
+    private const int MaxRecords = 2016; // 14 dní × 144 bucketů/den (10min interval)
 
     private UsageHistoryStore() { }
 
@@ -29,7 +29,7 @@ internal sealed class UsageHistoryStore
             var records = GetOrLoad(accountKey);
 
             var ts = DateTimeOffset.UtcNow;
-            var bucket = new DateTimeOffset(ts.Year, ts.Month, ts.Day, ts.Hour, 0, 0, TimeSpan.Zero)
+            var bucket = new DateTimeOffset(ts.Year, ts.Month, ts.Day, ts.Hour, ts.Minute / 10 * 10, 0, TimeSpan.Zero)
                 .ToString("yyyy-MM-ddTHH:mm:ssZ");
 
             var record = new HistoryRecord

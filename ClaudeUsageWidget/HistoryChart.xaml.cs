@@ -8,7 +8,7 @@ namespace ClaudeUsageWidgetProvider;
 
 public partial class HistoryChart : UserControl
 {
-    private const int TargetLength = 336; // 14d × 24h
+    private const int TargetLength = 2016; // 14d × 144 bucketů/den (10min interval)
     private const double PadX = 2.0;
     private const double PadY = 2.0;
 
