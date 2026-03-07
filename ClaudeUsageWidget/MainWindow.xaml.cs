@@ -141,12 +141,13 @@ public partial class MainWindow : Window
         _taskbarHwnd = taskbarHwnd;
         _isPrimary = isPrimary;
         InitializeComponent();
-        MouseEnter += (_, _) => ShowPopup();
-        MouseLeave += (_, _) => HidePopup();
 
         foreach (var client in clients)
         {
+            var index = _accounts.Count;
             var panel = new AccountPanel(client.AccountService);
+            panel.MouseEnter += (_, _) => ShowPopupForAccount(index);
+            panel.MouseLeave += (_, _) => HidePopup();
             AccountsPanel.Children.Add(panel);
             _accounts.Add((client, panel, null));
         }
@@ -397,10 +398,10 @@ public partial class MainWindow : Window
         _trayWatchTimer.Start();
     }
 
-    private void ShowPopup()
+    private void ShowPopupForAccount(int index)
     {
-        if (_accounts.Count == 0) return;
-        var (client, _, lastUsage) = _accounts[0];
+        if (index >= _accounts.Count) return;
+        var (client, _, lastUsage) = _accounts[index];
         if (lastUsage == null && client.LastError == null) return;
         if (_popup == null)
         {
@@ -408,7 +409,9 @@ public partial class MainWindow : Window
             _popup.Owner = this;
             _popup.MouseLeave += (_, _) => HidePopup();
         }
-        _popup.UpdateAndShow(lastUsage, client.LastError, client.CredentialPath, Left, Top);
+        const double ColWidth = 170.0;
+        _popup.UpdateAndShow(lastUsage, client.LastError, client.CredentialPath,
+            Left + index * ColWidth, Top);
     }
 
     private void HidePopup()

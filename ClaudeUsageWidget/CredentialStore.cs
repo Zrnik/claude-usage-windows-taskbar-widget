@@ -293,33 +293,19 @@ internal static class CredentialStore
             var doc = JsonNode.Parse(json);
             if (doc == null) return null;
 
-            var tokenNode = doc["access_token"] ?? doc["accessToken"] ?? doc["token"];
+            // Codex auth.json nests tokens under "tokens" object
+            var tokensNode = doc["tokens"];
+            var tokenNode = doc["access_token"] ?? doc["accessToken"] ?? doc["token"]
+                ?? tokensNode?["access_token"];
             var token = tokenNode?.GetValue<string>();
             if (string.IsNullOrEmpty(token)) return null;
 
-            var refreshNode = doc["refresh_token"] ?? doc["refreshToken"];
+            var refreshNode = doc["refresh_token"] ?? doc["refreshToken"]
+                ?? tokensNode?["refresh_token"];
             var refreshToken = refreshNode?.GetValue<string>() ?? "";
 
-            long expiresAt;
-            var expiresNode = doc["expires_at"] ?? doc["expiresAt"];
-            if (expiresNode != null)
-            {
-                try
-                {
-                    expiresAt = expiresNode.GetValue<long>();
-                }
-                catch (InvalidOperationException)
-                {
-                    if (DateTimeOffset.TryParse(expiresNode.GetValue<string>(), out var dto))
-                        expiresAt = dto.ToUnixTimeMilliseconds();
-                    else
-                        expiresAt = long.MaxValue;
-                }
-            }
-            else
-            {
-                expiresAt = long.MaxValue;
-            }
+            // Try to get expiry from JWT payload (exp field, seconds → ms)
+            var expiresAt = GetJwtExpiryMs(token);
 
             return new OAuthCredential
             {
@@ -333,5 +319,22 @@ internal static class CredentialStore
         {
             return null;
         }
+    }
+
+    private static long GetJwtExpiryMs(string jwt)
+    {
+        try
+        {
+            var parts = jwt.Split('.');
+            if (parts.Length < 2) return long.MaxValue;
+            var payload = parts[1];
+            var padded = payload.PadRight((payload.Length + 3) / 4 * 4, '=')
+                                .Replace('-', '+').Replace('_', '/');
+            var bytes = Convert.FromBase64String(padded);
+            var doc = JsonNode.Parse(System.Text.Encoding.UTF8.GetString(bytes));
+            var exp = doc?["exp"]?.GetValue<long>() ?? 0;
+            return exp > 0 ? exp * 1000L : long.MaxValue;
+        }
+        catch { return long.MaxValue; }
     }
 }
