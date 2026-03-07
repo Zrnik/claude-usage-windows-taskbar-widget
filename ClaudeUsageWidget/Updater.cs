@@ -96,9 +96,10 @@ internal static class Updater
 
         Process.Start(new ProcessStartInfo
         {
-            FileName = "powershell.exe",
-            Arguments = $"-ExecutionPolicy Bypass -File \"{scriptPath}\"",
-            UseShellExecute = true
+            FileName = "cmd.exe",
+            Arguments = $"/c start \"ClaudeUsageWidget Update\" powershell.exe -ExecutionPolicy Bypass -File \"{scriptPath}\"",
+            UseShellExecute = false,
+            CreateNoWindow = true
         });
 
     }
