@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
@@ -6,6 +7,8 @@ namespace ClaudeUsageWidgetProvider;
 
 internal class App : Application
 {
+    private Mutex? _mutex;
+
     [DllImport("user32.dll")]
     private static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
 
@@ -49,6 +52,23 @@ internal class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        _mutex = new Mutex(initiallyOwned: false, "Local\\ClaudeUsageWidget", out bool createdNew);
+        if (!createdNew)
+        {
+            // Předchozí instance běží — zabij ji
+            var currentId = Environment.ProcessId;
+            var exeName = Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "");
+            foreach (var p in Process.GetProcessesByName(exeName))
+            {
+                if (p.Id == currentId) continue;
+                try { p.Kill(); p.WaitForExit(2000); } catch { }
+            }
+            // Předchozí instance je mrtvá — získej Mutex
+            try { _mutex.WaitOne(3000); }
+            catch (AbandonedMutexException) { /* ok — předchozí crashla, Mutex je náš */ }
+        }
+
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         // Načíst všechny unikátní účty (Claude Windows+WSL deduplikováno, Codex)
@@ -81,6 +101,13 @@ internal class App : Application
                 new MainWindow(clients, hwnd, isPrimary: false).Show();
             return true;
         }, IntPtr.Zero);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _mutex?.ReleaseMutex();
+        _mutex?.Dispose();
+        base.OnExit(e);
     }
 }
 
