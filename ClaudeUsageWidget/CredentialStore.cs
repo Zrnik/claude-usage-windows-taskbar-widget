@@ -4,6 +4,14 @@ using System.Text.Json.Nodes;
 
 namespace ClaudeUsageWidgetProvider;
 
+internal enum ServiceType { Claude, Codex }
+
+internal sealed record AccountInfo(
+    ServiceType Service,
+    OAuthCredential Credential,
+    string Label
+);
+
 internal sealed class OAuthCredential
 {
     public string AccessToken { get; set; } = "";
@@ -191,6 +199,131 @@ internal static class CredentialStore
             return new OAuthCredential
             {
                 AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresAt = expiresAt,
+                SourcePath = sourcePath
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static List<AccountInfo> LoadAllAccounts()
+    {
+        var result = new List<AccountInfo>();
+        var seen = new HashSet<string>();
+
+        foreach (var cred in LoadAllCredentials())
+        {
+            var token = cred.AccessToken;
+            var key = "claude:" + token[..Math.Min(32, token.Length)];
+            if (!seen.Add(key)) continue;
+
+            var label = cred.SourcePath.StartsWith("wsl:") ? "claude-wsl" : "claude-windows";
+            result.Add(new AccountInfo(ServiceType.Claude, cred, label));
+        }
+
+        foreach (var account in LoadCodexCredentials())
+        {
+            var token = account.Credential.AccessToken;
+            var key = "codex:" + token[..Math.Min(32, token.Length)];
+            if (!seen.Add(key)) continue;
+
+            result.Add(account);
+        }
+
+        return result;
+    }
+
+    private static List<AccountInfo> LoadCodexCredentials()
+    {
+        var result = new List<AccountInfo>();
+
+        var win = TryLoadCodexWindowsCredential();
+        if (win != null) result.Add(win);
+
+        var wsl = TryLoadCodexWslCredential();
+        if (wsl != null) result.Add(wsl);
+
+        return result;
+    }
+
+    private static AccountInfo? TryLoadCodexWindowsCredential()
+    {
+        var path = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".codex",
+            "auth.json");
+
+        if (!File.Exists(path)) return null;
+
+        try
+        {
+            var json = File.ReadAllText(path);
+            var cred = ParseCodexCredentialJson(json, path);
+            return cred != null ? new AccountInfo(ServiceType.Codex, cred, "codex-windows") : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static AccountInfo? TryLoadCodexWslCredential()
+    {
+        try
+        {
+            var json = RunWsl("cat ~/.codex/auth.json");
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            var cred = ParseCodexCredentialJson(json, "wsl:~/.codex/auth.json");
+            return cred != null ? new AccountInfo(ServiceType.Codex, cred, "codex-wsl") : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static OAuthCredential? ParseCodexCredentialJson(string json, string sourcePath)
+    {
+        try
+        {
+            var doc = JsonNode.Parse(json);
+            if (doc == null) return null;
+
+            var tokenNode = doc["access_token"] ?? doc["accessToken"] ?? doc["token"];
+            var token = tokenNode?.GetValue<string>();
+            if (string.IsNullOrEmpty(token)) return null;
+
+            var refreshNode = doc["refresh_token"] ?? doc["refreshToken"];
+            var refreshToken = refreshNode?.GetValue<string>() ?? "";
+
+            long expiresAt;
+            var expiresNode = doc["expires_at"] ?? doc["expiresAt"];
+            if (expiresNode != null)
+            {
+                try
+                {
+                    expiresAt = expiresNode.GetValue<long>();
+                }
+                catch (InvalidOperationException)
+                {
+                    if (DateTimeOffset.TryParse(expiresNode.GetValue<string>(), out var dto))
+                        expiresAt = dto.ToUnixTimeMilliseconds();
+                    else
+                        expiresAt = long.MaxValue;
+                }
+            }
+            else
+            {
+                expiresAt = long.MaxValue;
+            }
+
+            return new OAuthCredential
+            {
+                AccessToken = token,
                 RefreshToken = refreshToken,
                 ExpiresAt = expiresAt,
                 SourcePath = sourcePath
