@@ -28,8 +28,18 @@ internal sealed class ClaudeApiClient : IDisposable
     private UsageData? _cachedUsage;
     private List<OAuthCredential> _credentials = [];
     private int _credentialIndex;
+    private bool _noReload;
 
     private OAuthCredential? _credential => _credentialIndex < _credentials.Count ? _credentials[_credentialIndex] : null;
+
+    internal ClaudeApiClient() { }
+
+    internal ClaudeApiClient(AccountInfo account)
+    {
+        _credentials = [account.Credential];
+        _credentialIndex = 0;
+        _noReload = true;
+    }
 
     public string CredentialPath => _credential?.SourcePath ?? "";
     public string? LastError { get; private set; }
@@ -46,7 +56,7 @@ internal sealed class ClaudeApiClient : IDisposable
     public async Task<UsageData?> GetUsageAsync(bool forceRefresh = false)
     {
         // Reload credentials from disk on each fresh attempt so changes (add/remove file) take effect immediately
-        if (_credentialIndex == 0)
+        if (_credentialIndex == 0 && !_noReload)
             _credentials = CredentialStore.LoadAllCredentials();
 
         if (_credential == null)
