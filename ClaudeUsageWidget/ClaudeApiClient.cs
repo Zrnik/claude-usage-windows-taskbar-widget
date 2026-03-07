@@ -32,6 +32,7 @@ internal sealed class ClaudeApiClient : IDisposable
     private readonly ServiceType _service;
 
     private OAuthCredential? _credential => _credentialIndex < _credentials.Count ? _credentials[_credentialIndex] : null;
+    private readonly string? _accountKey;
 
     internal ClaudeApiClient() { }
 
@@ -41,9 +42,11 @@ internal sealed class ClaudeApiClient : IDisposable
         _credentialIndex = 0;
         _noReload = true;
         _service = account.Service;
+        _accountKey = ExtractAccountKey(account);
     }
 
     public ServiceType AccountService => _service;
+    public string? AccountKey => _accountKey;
 
     public string CredentialPath => _credential?.SourcePath ?? "";
     public string? LastError { get; private set; }
@@ -293,6 +296,37 @@ internal sealed class ClaudeApiClient : IDisposable
         return long.TryParse(value, out var ts)
             ? DateTimeOffset.FromUnixTimeSeconds(ts)
             : DateTimeOffset.UtcNow;
+    }
+
+    private static string? ExtractAccountKey(AccountInfo account)
+    {
+        try
+        {
+            var token = account.Credential.AccessToken;
+            var parts = token.Split('.');
+            if (parts.Length < 2) return null;
+            var payload = parts[1];
+            var padded = payload.PadRight((payload.Length + 3) / 4 * 4, '=')
+                                .Replace('-', '+').Replace('_', '/');
+            var bytes = Convert.FromBase64String(padded);
+            var doc = System.Text.Json.Nodes.JsonNode.Parse(
+                System.Text.Encoding.UTF8.GetString(bytes));
+
+            if (account.Service == ServiceType.Claude)
+            {
+                var orgId = doc?["org_id"]?.GetValue<string>()
+                         ?? doc?["organization_id"]?.GetValue<string>()
+                         ?? doc?["sub"]?.GetValue<string>();
+                return orgId != null ? "claude:" + orgId : null;
+            }
+            else // Codex
+            {
+                var accountId = doc?["account_id"]?.GetValue<string>()
+                             ?? doc?["sub"]?.GetValue<string>();
+                return accountId != null ? "codex:" + accountId : null;
+            }
+        }
+        catch { return null; }
     }
 
     public void Dispose() { }

@@ -50,10 +50,10 @@ Plans:
   2. Každý unikátní účet má svůj soubor pojmenovaný dle klíče z STAB-03
   3. JSON se zapisuje atomicky (tmp soubor + File.Move) — crash nezkorumpuje data
   4. History soubor obsahuje maximálně 336 záznamů (14 dní × 24 hodin) — starší záznamy se automaticky ořezávají
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 07-01: UsageHistoryStore (append, trim, atomic write, in-memory cache)
+- [ ] 07-01-PLAN.md — UsageHistoryStore (append, trim, atomic write, in-memory cache) + MainWindow integrace
 
 #### Phase 8: Tooltip & Chart
 **Goal**: Tooltip zobrazuje historický usage graf v přepracovaném širším layoutu
