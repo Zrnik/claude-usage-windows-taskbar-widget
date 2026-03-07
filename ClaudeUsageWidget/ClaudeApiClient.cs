@@ -43,14 +43,12 @@ internal sealed class ClaudeApiClient : IDisposable
         messages = new[] { new { role = "user", content = "." } }
     });
 
-    public void SetCredentials(List<OAuthCredential> credentials)
-    {
-        _credentials = credentials;
-        _credentialIndex = 0;
-    }
-
     public async Task<UsageData?> GetUsageAsync(bool forceRefresh = false)
     {
+        // Reload credentials from disk on each fresh attempt so changes (add/remove file) take effect immediately
+        if (_credentialIndex == 0)
+            _credentials = CredentialStore.LoadAllCredentials();
+
         if (_credential == null)
         {
             LastError = "No credentials found";
