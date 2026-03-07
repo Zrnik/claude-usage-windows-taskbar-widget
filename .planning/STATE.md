@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.1.10
-milestone_name: Multi-account
-status: roadmap_ready
-stopped_at: Roadmap created, ready for Phase 4 planning
-last_updated: "2026-03-07T00:00:00.000Z"
-last_activity: 2026-03-07 — Roadmap pro v0.1.10 vytvořen (2 fáze, 6 requirements)
+milestone: v0.1
+milestone_name: milestone
+status: Not started (roadmap ready)
+stopped_at: Completed 04-multi-account-detekce-04-01-PLAN.md
+last_updated: "2026-03-07T11:56:46.287Z"
+last_activity: 2026-03-07 — Roadmap pro v0.1.10 vytvořen
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 2
   percent: 0
 ---
 
@@ -36,6 +36,10 @@ Progress: [----------] 0%
 ### Decisions
 
 Viz PROJECT.md Key Decisions table.
+- [Phase 04-multi-account-detekce]: Explicitni bezparametrovy konstruktor nutny - C# negeneruje default kdyz existuje jiny konstruktor
+- [Phase 04-multi-account-detekce]: Deduplikace pres HashSet<string> s klicem service:token[..32] prevenci duplicit pri shodnem tokenu z vice zdroju
+- [Phase 04-multi-account-detekce]: Codex ParseCodexCredentialJson s fallback poli (access_token/accessToken/token) pro kompatibilitu ruznych JSON formatu
+- [Phase 04-multi-account-detekce]: ExpiresAt=long.MaxValue pro Codex bez expiry pole — API klice nikdy nevyprsi
 
 ### Pending Todos
 
@@ -51,6 +55,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07
-Stopped at: Roadmap v0.1.10 vytvořen
+Last session: 2026-03-07T11:56:46.271Z
+Stopped at: Completed 04-multi-account-detekce-04-01-PLAN.md
 Resume file: None

@@ -56,5 +56,5 @@ Plans:
 | 1. Cleanup | v0.1.9 | 1/1 | Complete | 2026-03-06 |
 | 2. Widget UI a pozicování | v0.1.9 | 3/3 | Complete | 2026-03-06 |
 | 3. Data a viditelnost | v0.1.9 | 3/3 | Complete | 2026-03-07 |
-| 4. Multi-account detekce | v0.1.10 | 0/3 | Not started | - |
+| 4. Multi-account detekce | 2/3 | In Progress|  | - |
 | 5. Multi-account UI | v0.1.10 | 0/? | Not started | - |
