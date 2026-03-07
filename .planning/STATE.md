@@ -1,53 +1,40 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.1
-milestone_name: milestone
-status: Not started (roadmap ready)
-stopped_at: "Completed 05-multi-account-ui-05-02-PLAN.md (checkpoint: vizualni verifikace)"
-last_updated: "2026-03-07T12:38:22.932Z"
-last_activity: 2026-03-07 — Roadmap pro v0.1.10 vytvořen
+milestone: v0.1.10
+milestone_name: Multi-account
+status: milestone_complete
+last_updated: "2026-03-07"
+last_activity: 2026-03-07 — v0.1.10 milestone complete
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 0
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 12
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-07)
+See: .planning/PROJECT.md (updated 2026-03-07 after v0.1.10)
 
 **Core value:** Okamžitě viditelné vytížení Claude a Codex limitů přímo v taskbaru — bez klikání, bez otevírání oken.
-**Current focus:** v0.1.10 Multi-account — Phase 4: Multi-account detekce
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 4 — Multi-account detekce
-Status: Not started (roadmap ready)
-Last activity: 2026-03-07 — Roadmap pro v0.1.10 vytvořen
-
-Progress: [----------] 0%
+Milestone v0.1.10 complete. Ready for `/gsd:new-milestone`.
 
 ## Accumulated Context
 
 ### Decisions
 
 Viz PROJECT.md Key Decisions table.
-- [Phase 04-multi-account-detekce]: Explicitni bezparametrovy konstruktor nutny - C# negeneruje default kdyz existuje jiny konstruktor
-- [Phase 04-multi-account-detekce]: Deduplikace pres HashSet<string> s klicem service:token[..32] prevenci duplicit pri shodnem tokenu z vice zdroju
-- [Phase 04-multi-account-detekce]: Codex ParseCodexCredentialJson s fallback poli (access_token/accessToken/token) pro kompatibilitu ruznych JSON formatu
-- [Phase 04-multi-account-detekce]: ExpiresAt=long.MaxValue pro Codex bez expiry pole — API klice nikdy nevyprsi
-- [Phase 04-multi-account-detekce]: Phase 5 first-account-wins: zatim widget zobrazuje prvni ucet na vsech taskbarech, Phase 5 prida horizontalni layout
-- [Phase 04-multi-account-detekce]: Fallback no-credentials AccountInfo: prazdny seznam credentials generuje synthetic ucet, widget nesmit crashnout
-- [Phase 05-multi-account-ui]: Build Action Resource (ne EmbeddedResource) pro PNG assets — Pack URI přístup v XAML
-- [Phase 05-multi-account-ui]: AccountPanel konstruktor internal — ServiceType je internal enum, CS0051 vyzaduje konzistentni pristupnost
 
 ### Pending Todos
 
-- Spustit `/gsd:plan-phase 4` pro první fázi
+None.
 
 ### Blockers/Concerns
 
@@ -55,10 +42,4 @@ None.
 
 ### Known Tech Debt
 
-- Phase 02 nemá VERIFICATION.md — dokumentační problém, implementace funguje (zaznamenáno v MILESTONES.md)
-
-## Session Continuity
-
-Last session: 2026-03-07T12:38:22.910Z
-Stopped at: Completed 05-multi-account-ui-05-02-PLAN.md (checkpoint: vizualni verifikace)
-Resume file: None
+- Phase 02 nemá VERIFICATION.md — dokumentační problém, implementace funguje
