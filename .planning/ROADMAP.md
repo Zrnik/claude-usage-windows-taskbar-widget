@@ -63,11 +63,11 @@ Plans:
   1. Hover tooltip je 280px široký; reset čas (countdown) je vlevo, reset datum vpravo na stejném řádku
   2. Pod reset řádkem jsou dva sparkline grafy (5h a 7d utilization) s daty za 14 dní
   3. Grafy se renderují plynule — používají hourly data (max 336 bodů), ne per-minutové záznamy
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: HistoryChart UserControl (Canvas + Polyline)
-- [ ] 08-02: PopupWindow redesign (280px, 3-column Grid, embed HistoryChart)
+- [ ] 08-01-PLAN.md — HistoryChart UserControl (Canvas + Polyline, multicolor segmenty, fill polygon)
+- [ ] 08-02-PLAN.md — PopupWindow redesign (280px, reset Grid, HistoryChart embed) + MainWindow integrace
 
 ## Progress
 
@@ -79,5 +79,5 @@ Plans:
 | 4. Multi-account Arch | v0.1.10 | - | Complete | 2026-03-07 |
 | 5. Multi-account UI | v0.1.10 | - | Complete | 2026-03-07 |
 | 6. Stability | 2/2 | Complete   | 2026-03-07 | - |
-| 7. History Persistence | 1/1 | Complete   | 2026-03-07 | - |
+| 7. History Persistence | 1/1 | Complete    | 2026-03-07 | - |
 | 8. Tooltip & Chart | v0.1.11 | 0/2 | Not started | - |
