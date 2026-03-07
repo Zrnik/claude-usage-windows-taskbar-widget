@@ -285,7 +285,66 @@ public partial class MainWindow : Window
         _visibilityTimer.Start();
     }
 
-    private void CheckVisibility() { }
+    private void CheckVisibility()
+    {
+        bool taskbarVisible = IsTaskbarVisible();
+        bool fullscreen = IsFullscreenOnMyMonitor();
+        // Locked decision z CONTEXT.md: widget viditelný jen když taskbarVisible && !fullscreenOnSameMonitor
+        Visibility = (taskbarVisible && !fullscreen)
+            ? Visibility.Visible
+            : Visibility.Hidden;
+    }
+
+    private bool IsTaskbarVisible()
+    {
+        if (_isPrimary)
+        {
+            // Pro primární taskbar: zjistit zda má auto-hide zapnuté
+            var stateData = new APPBARDATA { cbSize = (uint)Marshal.SizeOf<APPBARDATA>() };
+            uint state = SHAppBarMessage(ABM_GETSTATE, ref stateData);
+            bool autoHideEnabled = (state & ABS_AUTOHIDE) != 0;
+
+            if (!autoHideEnabled) return true; // auto-hide vypnutý → vždy viditelný
+
+            // Auto-hide zapnutý: porovnat aktuální pozici taskbaru s expected pozicí
+            if (!GetWindowRect(_taskbarHwnd, out RECT actualRect)) return true;
+            var posData = new APPBARDATA { cbSize = (uint)Marshal.SizeOf<APPBARDATA>() };
+            SHAppBarMessage(ABM_GETTASKBARPOS, ref posData);
+            // Taskbar je skrytý = actualRect.Top je za spodní hranicí expected pozice
+            return actualRect.Top <= posData.rc.Bottom;
+        }
+        else
+        {
+            // Pro sekundární taskbar: heuristika — porovnat Top s dolní hranicí monitoru
+            if (!GetWindowRect(_taskbarHwnd, out RECT taskbarRect)) return true;
+            var monitor = MonitorFromWindow(_taskbarHwnd, MONITOR_DEFAULTTONEAREST);
+            var mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(monitor, ref mi)) return true;
+            // Skrytý = Top taskbaru je blízko dolního okraje monitoru (tolerance 2px)
+            return taskbarRect.Top < mi.rcMonitor.Bottom - 2;
+        }
+    }
+
+    private bool IsFullscreenOnMyMonitor()
+    {
+        var foreground = GetForegroundWindow();
+        if (foreground == IntPtr.Zero) return false;
+
+        // Zjistit monitor taskbaru (widget ho sleduje)
+        var myMonitor = MonitorFromWindow(_taskbarHwnd, MONITOR_DEFAULTTONEAREST);
+        var mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(myMonitor, ref mi)) return false;
+
+        // Zjistit monitor foreground okna
+        var fgMonitor = MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST);
+        if (fgMonitor != myMonitor) return false; // fullscreen na jiném monitoru — neskrývat
+
+        // Porovnat rozměry foreground okna s fyzickými rozměry monitoru (rcMonitor, ne rcWork)
+        if (!GetWindowRect(foreground, out RECT fgRect)) return false;
+        var mon = mi.rcMonitor;
+        return fgRect.Left <= mon.Left && fgRect.Top <= mon.Top
+            && fgRect.Right >= mon.Right && fgRect.Bottom >= mon.Bottom;
+    }
 
     private void RefreshText()
     {
