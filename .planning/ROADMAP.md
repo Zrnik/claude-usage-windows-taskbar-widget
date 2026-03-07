@@ -47,7 +47,11 @@ Plans:
   1. Každá sada progress barů má vlevo od barů ikonu identifikující službu (Claude logo nebo Codex logo)
   2. Více účtů se zobrazuje horizontálně vedle sebe — každý účet je samostatný sloupec
   3. Celková šířka widgetu se mění dynamicky podle počtu zobrazených účtů, aniž by widget překrýval taskbar ikony vlevo nebo tray oblast vpravo
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Embedded PNG ikony pro Claude a Codex jako WPF Resource
+- [ ] 05-02-PLAN.md — AccountPanel UserControl + multi-account layout + dynamická šířka + Program.cs fix
 
 ## Progress
 
@@ -57,4 +61,4 @@ Plans:
 | 2. Widget UI a pozicování | v0.1.9 | 3/3 | Complete | 2026-03-06 |
 | 3. Data a viditelnost | v0.1.9 | 3/3 | Complete | 2026-03-07 |
 | 4. Multi-account detekce | v0.1.10 | 3/3 | Complete | 2026-03-07 |
-| 5. Multi-account UI | v0.1.10 | 0/? | Not started | - |
+| 5. Multi-account UI | v0.1.10 | 0/2 | Not started | - |
