@@ -133,6 +133,9 @@ internal sealed class ClaudeApiClient : IDisposable
 
     private async Task<UsageData?> FetchUsageFromRateLimitHeadersAsync()
     {
+        if (_service == ServiceType.Codex)
+            return await FetchCodexUsageAsync();
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
         request.Headers.Add("x-api-key", _credential!.AccessToken);
         request.Headers.Add("anthropic-version", "2023-06-01");
@@ -172,10 +175,67 @@ internal sealed class ClaudeApiClient : IDisposable
         return new UsageData { Limits = limits };
     }
 
+    private async Task<UsageData?> FetchCodexUsageAsync()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            "https://chatgpt.com/backend-api/wham/usage");
+        request.Headers.Add("Authorization", $"Bearer {_credential!.AccessToken}");
+        request.Headers.Add("User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36");
+        request.Headers.Add("oai-client-build-number", "5146072");
+        request.Headers.Add("oai-language", "en-US");
+        request.Headers.Add("Referer", "https://chatgpt.com/codex/settings/usage");
+        request.Headers.Add("sec-fetch-mode", "cors");
+        request.Headers.Add("sec-fetch-site", "same-origin");
+
+        var response = await Http.SendAsync(request);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            throw new UnauthorizedAccessException("401 Unauthorized — invalid or expired credentials");
+
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        var doc = JsonNode.Parse(json);
+        if (doc == null) return null;
+
+        var limits = new List<RateLimitEntry>();
+
+        var sessionWindow = doc["rate_limit"]?["primary_window"];
+        if (sessionWindow != null)
+        {
+            limits.Add(new RateLimitEntry
+            {
+                Label = "session",
+                Utilization = sessionWindow["used_percent"]?.GetValue<double>() ?? 0,
+                ResetsAt = DateTimeOffset.FromUnixTimeSeconds(
+                    sessionWindow["reset_at"]?.GetValue<long>() ?? 0)
+            });
+        }
+
+        var reviewWindow = doc["code_review_rate_limit"]?["primary_window"];
+        if (reviewWindow != null)
+        {
+            limits.Add(new RateLimitEntry
+            {
+                Label = "review",
+                Utilization = reviewWindow["used_percent"]?.GetValue<double>() ?? 0,
+                ResetsAt = DateTimeOffset.FromUnixTimeSeconds(
+                    reviewWindow["reset_at"]?.GetValue<long>() ?? 0)
+            });
+        }
+
+        if (limits.Count == 0) return null;
+        return new UsageData { Limits = limits };
+    }
+
     public async Task<bool> RefreshTokenAsync()
     {
         if (_credential == null || string.IsNullOrEmpty(_credential.RefreshToken))
             return false;
+
+        // Codex refresh not implemented — token valid for ~10 days, user can re-login
+        if (_service == ServiceType.Codex) return false;
 
         try
         {
