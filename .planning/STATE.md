@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-03-07T18:16:20.404Z"
+stopped_at: "08-02 checkpoint:human-verify — Task 3 awaiting visual verification"
+last_updated: "2026-03-07T18:21:44.788Z"
 last_activity: 2026-03-07 — Completed 07-01 UsageHistoryStore
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -52,6 +52,8 @@ Klíčové pro v0.1.11 (z research):
 - [Phase 07-history-persistence]: Atomic write pattern potvrzen: tmp + Move(overwrite:true)
 - [Phase 08-tooltip-chart]: PadToLength vždy na 336 bodů (14d × 24h) — konzistentní X-škálování
 - [Phase 08-tooltip-chart]: Hraniční bod sdílený mezi segmenty při barevném přechodu — plynulý přechod bez mezery
+- [Phase 08-tooltip-chart]: accountKey jako optional parametr s default null — zpětná kompatibilita
+- [Phase 08-tooltip-chart]: MaxWidth error/credential TextBlock: 220→260px (odpovídá 280px - 2x10px padding)
 
 ### Pending Todos
 
@@ -68,6 +70,6 @@ Klíčové pro v0.1.11 (z research):
 
 ## Session Continuity
 
-Last session: 2026-03-07T18:16:20.386Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-03-07T18:21:44.767Z
+Stopped at: 08-02 checkpoint:human-verify — Task 3 awaiting visual verification
 Resume file: None

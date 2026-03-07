@@ -80,4 +80,4 @@ Plans:
 | 5. Multi-account UI | v0.1.10 | - | Complete | 2026-03-07 |
 | 6. Stability | 2/2 | Complete   | 2026-03-07 | - |
 | 7. History Persistence | 1/1 | Complete    | 2026-03-07 | - |
-| 8. Tooltip & Chart | 1/2 | In Progress|  | - |
+| 8. Tooltip & Chart | 2/2 | Complete   | 2026-03-07 | - |
