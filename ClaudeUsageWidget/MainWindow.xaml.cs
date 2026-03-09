@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace ClaudeUsageWidgetProvider;
@@ -162,6 +163,10 @@ public partial class MainWindow : Window
             AccountsPanel.Children.Add(panel);
             _accounts.Add((client, panel, null));
         }
+
+#if DEBUG
+        AccountsPanel.Background = new SolidColorBrush(Color.FromArgb(0x40, 0x80, 0x00, 0xFF));
+#endif
 
         const double ColWidth = 170.0;
         Width = ColWidth * clients.Count;
