@@ -53,9 +53,15 @@ internal sealed class ClaudeApiClient : IDisposable
 
     private static readonly TimeSpan MinFetchInterval = TimeSpan.FromSeconds(60);
 
-    private static readonly string MinimalRequestBody = JsonSerializer.Serialize(new
+    private static readonly string[] ProbeModels =
+    [
+        "claude-sonnet-4-20250514",
+        "claude-haiku-4-5-20251001"
+    ];
+
+    private static string BuildMinimalRequest(string model) => JsonSerializer.Serialize(new
     {
-        model = "claude-haiku-4-5-20251001",
+        model,
         max_tokens = 1,
         messages = new[] { new { role = "user", content = "." } }
     });
@@ -146,19 +152,45 @@ internal sealed class ClaudeApiClient : IDisposable
         if (_service == ServiceType.Codex)
             return await FetchCodexUsageAsync();
 
+        // Call multiple models in parallel to discover all model-specific rate limits
+        var tasks = ProbeModels.Select(model => ProbeModelAsync(model)).ToList();
+        var responses = await Task.WhenAll(tasks);
+
+        var limits = new Dictionary<string, RateLimitEntry>();
+        foreach (var response in responses)
+        {
+            if (response == null) continue;
+            using (response)
+                ExtractRateLimits(response, limits);
+        }
+
+        if (limits.Count == 0) return null;
+        return new UsageData { Limits = limits.Values.ToList() };
+    }
+
+    private async Task<HttpResponseMessage?> ProbeModelAsync(string model)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
         request.Headers.Add("x-api-key", _credential!.AccessToken);
         request.Headers.Add("anthropic-version", "2023-06-01");
-        request.Content = new StringContent(MinimalRequestBody, Encoding.UTF8, "application/json");
+        request.Content = new StringContent(BuildMinimalRequest(model), Encoding.UTF8, "application/json");
 
         var response = await Http.SendAsync(request);
 
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             throw new UnauthorizedAccessException("401 Unauthorized — invalid or expired credentials");
 
-        response.EnsureSuccessStatusCode();
+        // Both 200 and 429 carry rate limit headers
+        if (response.IsSuccessStatusCode ||
+            response.StatusCode == (System.Net.HttpStatusCode)429)
+            return response;
 
-        var limits = new List<RateLimitEntry>();
+        response.Dispose();
+        return null;
+    }
+
+    private static void ExtractRateLimits(HttpResponseMessage response, Dictionary<string, RateLimitEntry> limits)
+    {
         const string prefix = "anthropic-ratelimit-";
         const string utilSuffix = "-utilization";
 
@@ -167,22 +199,21 @@ internal sealed class ClaudeApiClient : IDisposable
             var name = header.Key.ToLowerInvariant();
             if (!name.StartsWith(prefix) || !name.EndsWith(utilSuffix)) continue;
 
-            var label = name[prefix.Length..^utilSuffix.Length]; // e.g. "unified-5h"
+            var label = name[prefix.Length..^utilSuffix.Length]; // e.g. "unified-5h", "unified-7d_sonnet"
+            if (limits.ContainsKey(label)) continue;
+
             var utilStr = header.Value.FirstOrDefault();
             if (!double.TryParse(utilStr, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out var util)) continue;
 
             var resetStr = GetHeader(response, $"{prefix}{label}-reset");
-            limits.Add(new RateLimitEntry
+            limits[label] = new RateLimitEntry
             {
                 Label = label,
                 Utilization = util * 100,
                 ResetsAt = ParseUnixTimestamp(resetStr)
-            });
+            };
         }
-
-        if (limits.Count == 0) return null;
-        return new UsageData { Limits = limits };
     }
 
     private async Task<UsageData?> FetchCodexUsageAsync()
