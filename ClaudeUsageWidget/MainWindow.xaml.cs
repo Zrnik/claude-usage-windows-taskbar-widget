@@ -98,6 +98,10 @@ public partial class MainWindow : Window
     private DispatcherTimer? _textTimer;
     private DispatcherTimer? _visibilityTimer;
     private bool _fullscreenMode;
+    // accountKey → latest usage, shared across all MainWindow instances
+    private static readonly Dictionary<string, UsageData> SharedUsage = [];
+    private static event Action? UsageUpdated;
+
     private readonly List<(ClaudeApiClient Client, AccountPanel Panel, UsageData? LastUsage)> _accounts = [];
     private readonly UsageHistoryStore _historyStore = UsageHistoryStore.Instance;
     private readonly IntPtr _taskbarHwnd;
@@ -130,6 +134,8 @@ public partial class MainWindow : Window
 
         Closed += (_, _) =>
         {
+            if (!_isPrimary)
+                UsageUpdated -= OnSharedUsageUpdated;
             _topMostEnforcer?.Dispose();
             _popup?.Close();
             _refreshTimer?.Stop();
@@ -171,6 +177,9 @@ public partial class MainWindow : Window
         const double ColWidth = 170.0;
         Width = ColWidth * clients.Count;
 
+        if (!_isPrimary)
+            UsageUpdated += OnSharedUsageUpdated;
+
         Loaded += async (_, _) =>
         {
 #if DEBUG
@@ -180,33 +189,45 @@ public partial class MainWindow : Window
             PositionWindow();
             StartTrayWatchTimer();
 
-            foreach (var (_, panel, _) in _accounts)
-                panel.ShowLoadingState();
-
-            StartSpinnerTimer();
-
-            var tasks = _accounts.Select((entry, i) => (Index: i, Task: entry.Client.GetUsageAsync())).ToList();
-            foreach (var (index, task) in tasks)
+            if (_isPrimary)
             {
-                var usage = await task;
-                var (client, panel, _) = _accounts[index];
-                if (usage != null)
+                foreach (var (_, panel, _) in _accounts)
+                    panel.ShowLoadingState();
+
+                StartSpinnerTimer();
+
+                var tasks = _accounts.Select((entry, i) => (Index: i, Task: entry.Client.GetUsageAsync())).ToList();
+                foreach (var (index, task) in tasks)
                 {
-                    _accounts[index] = (client, panel, usage);
-                    panel.UpdateBars(usage);
-                    _historyStore.Append(client.AccountKey, usage);
+                    var usage = await task;
+                    var (client, panel, _) = _accounts[index];
+                    if (usage != null)
+                    {
+                        _accounts[index] = (client, panel, usage);
+                        panel.UpdateBars(usage);
+                        _historyStore.Append(client.AccountKey, usage);
+                        if (client.AccountKey != null)
+                            SharedUsage[client.AccountKey] = usage;
+                    }
+                    else
+                    {
+                        panel.ShowErrorState();
+                    }
                 }
-                else
-                {
-                    panel.ShowErrorState();
-                }
+
+                StopSpinner();
+                UsageUpdated?.Invoke();
+                StartRefreshTimer();
+            }
+            else
+            {
+                // Secondary: apply any data already fetched by primary
+                OnSharedUsageUpdated();
             }
 
-            StopSpinner();
-            StartRefreshTimer();
             StartTextTimer();
             StartVisibilityTimer();
-            _ = LoadLatestReleaseAsync();
+            if (_isPrimary) _ = LoadLatestReleaseAsync();
         };
     }
 
@@ -324,14 +345,33 @@ public partial class MainWindow : Window
                     _accounts[i] = (client, panel, usage);
                     panel.UpdateBars(usage);
                     _historyStore.Append(client.AccountKey, usage);
+                    if (client.AccountKey != null)
+                        SharedUsage[client.AccountKey] = usage;
                 }
                 else
                 {
                     panel.ShowErrorState();
                 }
             }
+            UsageUpdated?.Invoke();
         };
         _refreshTimer.Start();
+    }
+
+    private void OnSharedUsageUpdated()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            for (int i = 0; i < _accounts.Count; i++)
+            {
+                var (client, panel, _) = _accounts[i];
+                if (client.AccountKey != null && SharedUsage.TryGetValue(client.AccountKey, out var usage))
+                {
+                    _accounts[i] = (client, panel, usage);
+                    panel.UpdateBars(usage);
+                }
+            }
+        });
     }
 
     private void StartTextTimer()
