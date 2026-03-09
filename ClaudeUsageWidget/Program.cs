@@ -53,7 +53,7 @@ internal class App : Application
     {
         base.OnStartup(e);
 
-        _mutex = new Mutex(initiallyOwned: false, "Local\\ClaudeUsageWidget", out bool createdNew);
+        _mutex = new Mutex(initiallyOwned: true, "Local\\ClaudeUsageWidget", out bool createdNew);
         if (!createdNew)
         {
             // Předchozí instance běží — zabij ji
