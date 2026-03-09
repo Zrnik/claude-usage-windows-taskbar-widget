@@ -64,6 +64,7 @@ internal sealed class TopMostEnforcer : IDisposable
     private readonly IntPtr _hwnd;
     private readonly uint _processId;
     private volatile uint _threadId;
+    private volatile bool _paused;
     private bool _disposed;
 
     // Must be fields — local variables get GC'd in Release builds before the message loop ends
@@ -107,14 +108,22 @@ internal sealed class TopMostEnforcer : IDisposable
         if (reorderHook != IntPtr.Zero) UnhookWinEvent(reorderHook);
     }
 
+    internal void Pause()  => _paused = true;
+    internal void Resume() => _paused = false;
+
     private void RequestTopmost() => PostThreadMessage(_threadId, WM_USER, IntPtr.Zero, IntPtr.Zero);
 
     private void OnForegroundChanged(IntPtr hook, uint eventType, IntPtr hwnd,
-        int idObject, int idChild, uint idEventThread, uint dwmsEventTime) => RequestTopmost();
+        int idObject, int idChild, uint idEventThread, uint dwmsEventTime)
+    {
+        if (_paused) return;
+        RequestTopmost();
+    }
 
     private void OnZOrderChanged(IntPtr hook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint idEventThread, uint dwmsEventTime)
     {
+        if (_paused) return;
         if (hwnd == _hwnd) return;
         GetWindowThreadProcessId(hwnd, out uint pid);
         if (pid == _processId) return;

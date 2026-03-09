@@ -96,6 +96,7 @@ public partial class MainWindow : Window
     private DispatcherTimer? _refreshTimer;
     private DispatcherTimer? _textTimer;
     private DispatcherTimer? _visibilityTimer;
+    private bool _fullscreenMode;
     private readonly List<(ClaudeApiClient Client, AccountPanel Panel, UsageData? LastUsage)> _accounts = [];
     private readonly UsageHistoryStore _historyStore = UsageHistoryStore.Instance;
     private readonly IntPtr _taskbarHwnd;
@@ -120,6 +121,9 @@ public partial class MainWindow : Window
         var exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
         SetWindowLong(hwnd, GWL_EXSTYLE, exStyle | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
         HwndSource.FromHwnd(hwnd).AddHook(WndProc);
+
+        System.Diagnostics.Process.GetCurrentProcess().PriorityClass =
+            System.Diagnostics.ProcessPriorityClass.BelowNormal;
 
         _topMostEnforcer = new TopMostEnforcer(hwnd);
 
@@ -347,10 +351,37 @@ public partial class MainWindow : Window
     {
         bool taskbarVisible = IsTaskbarVisible();
         bool fullscreen = IsFullscreenOnMyMonitor();
+        bool shouldShow = taskbarVisible && !fullscreen;
+
+        if (fullscreen && !_fullscreenMode)
+            EnterFullscreenMode();
+        else if (!fullscreen && _fullscreenMode)
+            ExitFullscreenMode();
+
         // Locked decision z CONTEXT.md: widget viditelny jen kdyz taskbarVisible && !fullscreenOnSameMonitor
-        Visibility = (taskbarVisible && !fullscreen)
-            ? Visibility.Visible
-            : Visibility.Hidden;
+        Visibility = shouldShow ? Visibility.Visible : Visibility.Hidden;
+    }
+
+    private void EnterFullscreenMode()
+    {
+        _fullscreenMode = true;
+        _refreshTimer?.Stop();
+        _textTimer?.Stop();
+        _trayWatchTimer?.Stop();
+        _topMostEnforcer?.Pause();
+        if (_visibilityTimer != null)
+            _visibilityTimer.Interval = TimeSpan.FromSeconds(2);
+    }
+
+    private void ExitFullscreenMode()
+    {
+        _fullscreenMode = false;
+        _refreshTimer?.Start();
+        _textTimer?.Start();
+        _trayWatchTimer?.Start();
+        _topMostEnforcer?.Resume();
+        if (_visibilityTimer != null)
+            _visibilityTimer.Interval = TimeSpan.FromMilliseconds(500);
     }
 
     private bool IsTaskbarVisible()
