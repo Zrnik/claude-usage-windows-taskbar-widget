@@ -17,6 +17,6 @@
            RenderOptions.BitmapScalingMode="HighQuality"/>
 
     <!-- Dynamicke bary -->
-    <StackPanel x:Name="BarsPanel" Grid.Column="2" VerticalAlignment="Center"/>
+    <Grid x:Name="BarsPanel" Grid.Column="2"/>
   </Grid>
 </UserControl>

@@ -118,10 +118,18 @@ public partial class AccountPanel : UserControl
             BarsPanel.Children.Add(entry.Container);
         }
 
-        // Adjust spacing based on count
+        // Rebuild row definitions: bar* / spacing / bar* / spacing / bar*
         double spacing = count <= 2 ? 5 : count <= 4 ? 3 : 2;
-        for (int i = 0; i < _bars.Count; i++)
-            _bars[i].Container.Margin = new Thickness(0, i == 0 ? 0 : spacing, 0, 0);
+        BarsPanel.RowDefinitions.Clear();
+        for (int i = 0; i < count; i++)
+        {
+            if (i > 0)
+                BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(spacing, GridUnitType.Pixel) });
+            BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            int row = i == 0 ? 0 : i * 2; // bar rows: 0, 2, 4, ...
+            Grid.SetRow(_bars[i].Container, row);
+        }
     }
 
     private static (ProgressBar Bar, TextBlock Text, Grid Container) CreateBarEntry()
