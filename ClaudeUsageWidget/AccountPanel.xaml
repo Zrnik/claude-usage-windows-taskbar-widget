@@ -8,51 +8,15 @@
       <ColumnDefinition Width="4"/>
       <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
-    <Grid.RowDefinitions>
-      <RowDefinition Height="*"/>
-      <RowDefinition Height="5"/>
-      <RowDefinition Height="*"/>
-    </Grid.RowDefinitions>
 
-    <!-- Ikona sluzby — pres obe radky baru, vertikalne centrovana -->
+    <!-- Ikona sluzby — vertikalne centrovana -->
     <Image x:Name="ServiceIcon"
-           Grid.Column="0" Grid.Row="0" Grid.RowSpan="3"
+           Grid.Column="0"
            Width="20" Height="20"
            VerticalAlignment="Center"
            RenderOptions.BitmapScalingMode="HighQuality"/>
 
-    <!-- Bar 5h -->
-    <Grid Grid.Column="2" Grid.Row="0">
-      <ProgressBar x:Name="Bar5h" Minimum="0" Maximum="100" Value="0">
-        <ProgressBar.Template>
-          <ControlTemplate TargetType="ProgressBar">
-            <Grid>
-              <Border Background="#333333" CornerRadius="3"/>
-              <Border x:Name="PART_Track"/>
-              <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="#4CAF50" CornerRadius="3"/>
-            </Grid>
-          </ControlTemplate>
-        </ProgressBar.Template>
-      </ProgressBar>
-      <TextBlock x:Name="Text5h" HorizontalAlignment="Center" VerticalAlignment="Center"
-                 Foreground="White" FontSize="9" Text="0%"/>
-    </Grid>
-
-    <!-- Bar 7d -->
-    <Grid Grid.Column="2" Grid.Row="2">
-      <ProgressBar x:Name="Bar7d" Minimum="0" Maximum="100" Value="0">
-        <ProgressBar.Template>
-          <ControlTemplate TargetType="ProgressBar">
-            <Grid>
-              <Border Background="#333333" CornerRadius="3"/>
-              <Border x:Name="PART_Track"/>
-              <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="#4CAF50" CornerRadius="3"/>
-            </Grid>
-          </ControlTemplate>
-        </ProgressBar.Template>
-      </ProgressBar>
-      <TextBlock x:Name="Text7d" HorizontalAlignment="Center" VerticalAlignment="Center"
-                 Foreground="White" FontSize="9" Text="0%"/>
-    </Grid>
+    <!-- Dynamicke bary -->
+    <StackPanel x:Name="BarsPanel" Grid.Column="2" VerticalAlignment="Center"/>
   </Grid>
 </UserControl>
