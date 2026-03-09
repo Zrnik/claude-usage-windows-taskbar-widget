@@ -39,7 +39,7 @@ public partial class AccountPanel : UserControl
             pctText.Text = showText ? $"{limit.Utilization:0}%" : "";
             timeText.Text = showText ? TimeFormatter.FormatResetTime(limit.ResetsAt) : "";
 
-            container.ToolTip = $"{FormatLabel(limit.Label)} {limit.Utilization:0}% Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}";
+            container.ToolTip = null;
             container.Tag = null;
             container.ContextMenu = null;
         }
@@ -123,7 +123,7 @@ public partial class AccountPanel : UserControl
             bool showText = lastUsage.Limits.Count <= 4;
             _bars[i].PctText.Text = showText ? $"{limit.Utilization:0}%" : "";
             _bars[i].TimeText.Text = showText ? TimeFormatter.FormatResetTime(limit.ResetsAt) : "";
-            _bars[i].Container.ToolTip = $"{FormatLabel(limit.Label)} {limit.Utilization:0}% Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}";
+            _bars[i].Container.ToolTip = null;
         }
     }
 
