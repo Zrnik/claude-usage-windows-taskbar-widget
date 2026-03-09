@@ -11,7 +11,7 @@ public partial class AccountPanel : UserControl
     private int _spinnerFrame;
     private bool _isLoading;
 
-    private readonly List<(ProgressBar Bar, TextBlock Text, Grid Container)> _bars = [];
+    private readonly List<(ProgressBar Bar, TextBlock PctText, TextBlock TimeText, Grid Container)> _bars = [];
 
     internal AccountPanel(ServiceType service)
     {
@@ -30,16 +30,14 @@ public partial class AccountPanel : UserControl
         for (int i = 0; i < data.Limits.Count; i++)
         {
             var limit = data.Limits[i];
-            var (bar, text, _) = _bars[i];
+            var (bar, pctText, timeText, _) = _bars[i];
 
             bar.Value = limit.Utilization;
             SetBarColor(GetBarIndicator(bar), limit.Utilization);
 
             bool showText = data.Limits.Count <= 4;
-            text.Text = showText
-                ? $"{limit.Utilization:0}% {TimeFormatter.FormatResetTime(limit.ResetsAt)}"
-                : "";
-            text.Foreground = Brushes.White;
+            pctText.Text = showText ? $"{limit.Utilization:0}%" : "";
+            timeText.Text = showText ? TimeFormatter.FormatResetTime(limit.ResetsAt) : "";
 
             bar.ToolTip = $"{FormatLabel(limit.Label)} {limit.Utilization:0}% Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}";
         }
@@ -49,11 +47,12 @@ public partial class AccountPanel : UserControl
     {
         _isLoading = true;
         EnsureBarCount(2);
-        foreach (var (bar, text, _) in _bars)
+        foreach (var (bar, pctText, timeText, _) in _bars)
         {
             bar.Value = 0;
             bar.ToolTip = null;
-            text.Text = SpinnerFrames[_spinnerFrame];
+            pctText.Text = SpinnerFrames[_spinnerFrame];
+            timeText.Text = "";
         }
     }
 
@@ -61,14 +60,17 @@ public partial class AccountPanel : UserControl
     {
         if (!_isLoading) return;
         _spinnerFrame = (_spinnerFrame + 1) % SpinnerFrames.Length;
-        foreach (var (_, text, _) in _bars)
-            text.Text = SpinnerFrames[_spinnerFrame];
+        foreach (var (_, pctText, _, _) in _bars)
+            pctText.Text = SpinnerFrames[_spinnerFrame];
     }
 
     public void ClearSpinner()
     {
-        foreach (var (_, text, _) in _bars)
-            text.Text = "";
+        foreach (var (_, pctText, timeText, _) in _bars)
+        {
+            pctText.Text = "";
+            timeText.Text = "";
+        }
     }
 
     public void ShowErrorState()
@@ -76,14 +78,15 @@ public partial class AccountPanel : UserControl
         _isLoading = false;
         EnsureBarCount(Math.Max(_bars.Count, 2));
         var maroon = new SolidColorBrush(Colors.Maroon);
-        foreach (var (bar, text, _) in _bars)
+        foreach (var (bar, pctText, timeText, _) in _bars)
         {
             bar.Value = 100;
             bar.ToolTip = null;
             var ind = GetBarIndicator(bar);
             if (ind != null) ind.Background = maroon;
-            text.Foreground = Brushes.White;
-            text.Text = "Error";
+            pctText.Foreground = Brushes.White;
+            pctText.Text = "Error";
+            timeText.Text = "";
         }
     }
 
@@ -94,9 +97,8 @@ public partial class AccountPanel : UserControl
         {
             var limit = lastUsage.Limits[i];
             bool showText = lastUsage.Limits.Count <= 4;
-            _bars[i].Text.Text = showText
-                ? $"{limit.Utilization:0}% {TimeFormatter.FormatResetTime(limit.ResetsAt)}"
-                : "";
+            _bars[i].PctText.Text = showText ? $"{limit.Utilization:0}%" : "";
+            _bars[i].TimeText.Text = showText ? TimeFormatter.FormatResetTime(limit.ResetsAt) : "";
             _bars[i].Bar.ToolTip = $"{FormatLabel(limit.Label)} {limit.Utilization:0}% Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}";
         }
     }
@@ -132,25 +134,43 @@ public partial class AccountPanel : UserControl
         }
     }
 
-    private static (ProgressBar Bar, TextBlock Text, Grid Container) CreateBarEntry()
+    private static (ProgressBar Bar, TextBlock PctText, TextBlock TimeText, Grid Container) CreateBarEntry()
     {
         var bar = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0 };
         bar.Template = CreateBarTemplate();
 
-        var text = new TextBlock
+        // Overlay grid: [0..35%] pct right-aligned | [55%..100%] time left-aligned
+        var overlay = new Grid();
+        overlay.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35, GridUnitType.Star) });
+        overlay.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20, GridUnitType.Star) });
+        overlay.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45, GridUnitType.Star) });
+
+        var pctText = new TextBlock
         {
-            HorizontalAlignment = HorizontalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brushes.White,
-            FontSize = 9,
-            Text = ""
+            FontSize = 9
         };
+        Grid.SetColumn(pctText, 0);
+
+        var timeText = new TextBlock
+        {
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = Brushes.White,
+            FontSize = 9
+        };
+        Grid.SetColumn(timeText, 2);
+
+        overlay.Children.Add(pctText);
+        overlay.Children.Add(timeText);
 
         var container = new Grid();
         container.Children.Add(bar);
-        container.Children.Add(text);
+        container.Children.Add(overlay);
 
-        return (bar, text, container);
+        return (bar, pctText, timeText, container);
     }
 
     private static ControlTemplate CreateBarTemplate()
