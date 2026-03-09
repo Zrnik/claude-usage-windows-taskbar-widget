@@ -528,7 +528,7 @@ public partial class MainWindow : Window
 
     private async Task UpdateAsync()
     {
-        var info = _latestRelease ?? await Updater.CheckAsync();
+        var info = await Updater.FreshCheckAsync();
         if (info == null) return;
         Updater.LaunchUpdaterTerminal(info);
     }

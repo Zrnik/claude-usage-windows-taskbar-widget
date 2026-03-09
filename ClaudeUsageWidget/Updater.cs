@@ -34,9 +34,12 @@ internal static class Updater
         }
     }
 
-    // Deduplicates — multiple callers share the same Task
+    // Deduplicates concurrent callers; FreshCheckAsync bypasses cache
     public static Task<UpdateInfo?> CheckAsync() =>
         _checkTask ??= DoCheckAsync();
+
+    public static Task<UpdateInfo?> FreshCheckAsync() =>
+        _checkTask = DoCheckAsync();
 
     private static async Task<UpdateInfo?> DoCheckAsync()
     {
