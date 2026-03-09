@@ -30,7 +30,7 @@ public partial class AccountPanel : UserControl
         for (int i = 0; i < data.Limits.Count; i++)
         {
             var limit = data.Limits[i];
-            var (bar, pctText, timeText, _) = _bars[i];
+            var (bar, pctText, timeText, container) = _bars[i];
 
             bar.Value = limit.Utilization;
             SetBarColor(GetBarIndicator(bar), limit.Utilization);
@@ -39,7 +39,9 @@ public partial class AccountPanel : UserControl
             pctText.Text = showText ? $"{limit.Utilization:0}%" : "";
             timeText.Text = showText ? TimeFormatter.FormatResetTime(limit.ResetsAt) : "";
 
-            bar.ToolTip = $"{FormatLabel(limit.Label)} {limit.Utilization:0}% Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}";
+            container.ToolTip = $"{FormatLabel(limit.Label)} {limit.Utilization:0}% Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}";
+            container.Tag = null;
+            container.ContextMenu = null;
         }
     }
 
@@ -47,10 +49,11 @@ public partial class AccountPanel : UserControl
     {
         _isLoading = true;
         EnsureBarCount(2);
-        foreach (var (bar, pctText, timeText, _) in _bars)
+        foreach (var (bar, pctText, timeText, container) in _bars)
         {
             bar.Value = 0;
-            bar.ToolTip = null;
+            container.ToolTip = null;
+            container.ContextMenu = null;
             pctText.Text = SpinnerFrames[_spinnerFrame];
             timeText.Text = "";
         }
@@ -73,21 +76,42 @@ public partial class AccountPanel : UserControl
         }
     }
 
-    public void ShowErrorState()
+    public void ShowErrorState(string? errorMessage = null)
     {
         _isLoading = false;
         EnsureBarCount(Math.Max(_bars.Count, 2));
         var maroon = new SolidColorBrush(Colors.Maroon);
-        foreach (var (bar, pctText, timeText, _) in _bars)
+        foreach (var (bar, pctText, timeText, container) in _bars)
         {
             bar.Value = 100;
-            bar.ToolTip = null;
             var ind = GetBarIndicator(bar);
             if (ind != null) ind.Background = maroon;
             pctText.Foreground = Brushes.White;
             pctText.Text = "Error";
             timeText.Text = "";
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                container.ToolTip = errorMessage;
+                container.Tag = errorMessage;
+                container.ContextMenu = CreateCopyErrorMenu(errorMessage);
+            }
+            else
+            {
+                container.ToolTip = null;
+                container.Tag = null;
+                container.ContextMenu = null;
+            }
         }
+    }
+
+    private static ContextMenu CreateCopyErrorMenu(string error)
+    {
+        var menu = new ContextMenu();
+        var item = new MenuItem { Header = "Copy error" };
+        item.Click += (_, _) => Clipboard.SetText(error);
+        menu.Items.Add(item);
+        return menu;
     }
 
     public void RefreshText(UsageData? lastUsage)
@@ -99,7 +123,7 @@ public partial class AccountPanel : UserControl
             bool showText = lastUsage.Limits.Count <= 4;
             _bars[i].PctText.Text = showText ? $"{limit.Utilization:0}%" : "";
             _bars[i].TimeText.Text = showText ? TimeFormatter.FormatResetTime(limit.ResetsAt) : "";
-            _bars[i].Bar.ToolTip = $"{FormatLabel(limit.Label)} {limit.Utilization:0}% Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}";
+            _bars[i].Container.ToolTip = $"{FormatLabel(limit.Label)} {limit.Utilization:0}% Reset: {TimeFormatter.FormatResetTime(limit.ResetsAt)}";
         }
     }
 

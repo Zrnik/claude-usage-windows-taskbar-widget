@@ -211,7 +211,7 @@ public partial class MainWindow : Window
                     }
                     else
                     {
-                        panel.ShowErrorState();
+                        panel.ShowErrorState(client.LastError);
                     }
                 }
 
@@ -350,7 +350,7 @@ public partial class MainWindow : Window
                 }
                 else
                 {
-                    panel.ShowErrorState();
+                    panel.ShowErrorState(client.LastError);
                 }
             }
             UsageUpdated?.Invoke();
