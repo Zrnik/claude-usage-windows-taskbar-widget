@@ -405,19 +405,30 @@ public partial class MainWindow : Window
         _visibilityTimer.Start();
     }
 
-    private void CheckVisibility()
+    private bool _visibilityCheckRunning;
+
+    private async void CheckVisibility()
     {
-        bool taskbarVisible = IsTaskbarVisible();
-        bool fullscreen = IsFullscreenOnMyMonitor();
-        bool shouldShow = taskbarVisible && !fullscreen;
+        if (_visibilityCheckRunning) return;
+        _visibilityCheckRunning = true;
+        try
+        {
+            var (taskbarVisible, fullscreen) = await Task.Run(() =>
+                (IsTaskbarVisible(), IsFullscreenOnMyMonitor()));
 
-        if (fullscreen && !_fullscreenMode)
-            EnterFullscreenMode();
-        else if (!fullscreen && _fullscreenMode)
-            ExitFullscreenMode();
+            bool shouldShow = taskbarVisible && !fullscreen;
 
-        // Locked decision z CONTEXT.md: widget viditelny jen kdyz taskbarVisible && !fullscreenOnSameMonitor
-        Visibility = shouldShow ? Visibility.Visible : Visibility.Hidden;
+            if (fullscreen && !_fullscreenMode)
+                EnterFullscreenMode();
+            else if (!fullscreen && _fullscreenMode)
+                ExitFullscreenMode();
+
+            Visibility = shouldShow ? Visibility.Visible : Visibility.Hidden;
+        }
+        finally
+        {
+            _visibilityCheckRunning = false;
+        }
     }
 
     private void EnterFullscreenMode()
@@ -505,9 +516,10 @@ public partial class MainWindow : Window
     private void StartTrayWatchTimer()
     {
         _trayWatchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        _trayWatchTimer.Tick += (_, _) =>
+        _trayWatchTimer.Tick += async (_, _) =>
         {
-            if (GetTrayWidth() != _lastTrayWidth)
+            var trayWidth = await Task.Run(() => GetTrayWidth());
+            if (trayWidth != _lastTrayWidth)
                 PositionWindow();
         };
         _trayWatchTimer.Start();
