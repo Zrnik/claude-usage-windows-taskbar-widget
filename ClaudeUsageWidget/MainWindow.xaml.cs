@@ -627,7 +627,10 @@ public partial class MainWindow : Window
     {
         if (_settingsWindow != null)
         {
+            if (_settingsWindow.WindowState == WindowState.Minimized)
+                _settingsWindow.WindowState = WindowState.Normal;
             _settingsWindow.Activate();
+            _settingsWindow.Focus();
             return;
         }
         _settingsWindow = new SettingsWindow();

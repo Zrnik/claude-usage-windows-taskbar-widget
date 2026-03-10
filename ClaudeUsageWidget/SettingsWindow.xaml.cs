@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 
 namespace ClaudeUsageWidgetProvider;
 
@@ -29,7 +30,6 @@ public partial class SettingsWindow : Window
         StartupCheck.Unchecked += (_, _) => SetStartup(false);
 
         CloseButton.Click += (_, _) => SafeClose();
-        Deactivated += (_, _) => SafeClose();
     }
 
     private void SafeClose()
@@ -37,6 +37,12 @@ public partial class SettingsWindow : Window
         if (_closing) return;
         _closing = true;
         Close();
+    }
+
+    private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+            DragMove();
     }
 
     private void SaveSettings()

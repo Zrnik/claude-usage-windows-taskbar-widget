@@ -2,14 +2,15 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None"
-        ShowInTaskbar="False"
+        ShowInTaskbar="True"
         ResizeMode="NoResize"
         AllowsTransparency="True"
         Background="Transparent"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterScreen"
         Title="Claude Usage Widget Settings">
-    <Border Background="#1C1C1C" CornerRadius="8" Padding="16,12">
+    <Border Background="#1C1C1C" CornerRadius="8" Padding="16,12"
+            MouseLeftButtonDown="Border_MouseLeftButtonDown">
         <StackPanel Width="260">
             <TextBlock Text="Settings" Foreground="White" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"/>
 
