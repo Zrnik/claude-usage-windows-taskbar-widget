@@ -109,6 +109,7 @@ public partial class MainWindow : Window
     private PopupWindow? _popup;
     private TopMostEnforcer? _topMostEnforcer;
     private UpdateInfo? _latestRelease;
+    private SettingsWindow? _settingsWindow;
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
@@ -131,6 +132,12 @@ public partial class MainWindow : Window
             System.Diagnostics.ProcessPriorityClass.BelowNormal;
 
         _topMostEnforcer = new TopMostEnforcer(hwnd);
+
+        if (!SettingsStore.Instance.AlwaysOnTop)
+        {
+            _topMostEnforcer.Pause();
+            Topmost = false;
+        }
 
         Closed += (_, _) =>
         {
@@ -166,6 +173,10 @@ public partial class MainWindow : Window
             var panel = new AccountPanel(client.AccountService);
             panel.MouseEnter += (_, _) => ShowPopupForAccount(index);
             panel.MouseLeave += (_, _) => HidePopup();
+            panel.MouseLeftButtonDown += (_, args) =>
+            {
+                if (args.ClickCount == 2) _ = ForceRefreshAccount(index);
+            };
             AccountsPanel.Children.Add(panel);
             _accounts.Add((client, panel, null));
         }
@@ -206,6 +217,7 @@ public partial class MainWindow : Window
                         _accounts[index] = (client, panel, usage);
                         panel.UpdateBars(usage);
                         _historyStore.Append(client.AccountKey, usage);
+                        NotificationService.Instance.CheckAndNotify(client.AccountKey, usage);
                         if (client.AccountKey != null)
                             SharedUsage[client.AccountKey] = usage;
                     }
@@ -345,6 +357,7 @@ public partial class MainWindow : Window
                     _accounts[i] = (client, panel, usage);
                     panel.UpdateBars(usage);
                     _historyStore.Append(client.AccountKey, usage);
+                    NotificationService.Instance.CheckAndNotify(client.AccountKey, usage);
                     if (client.AccountKey != null)
                         SharedUsage[client.AccountKey] = usage;
                 }
@@ -536,12 +549,6 @@ public partial class MainWindow : Window
     private const string RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string RunRegistryValue = "ClaudeUsageWidget";
 
-    private static bool IsStartupEnabled()
-    {
-        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunRegistryKey);
-        return key?.GetValue(RunRegistryValue) != null;
-    }
-
 #if DEBUG
     private static void RemoveStartupIfThisExe()
     {
@@ -554,34 +561,77 @@ public partial class MainWindow : Window
     }
 #endif
 
-    private static void SetStartup(bool enable)
+    private async Task ForceRefreshAccount(int index)
     {
-        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunRegistryKey, writable: true);
-        if (key == null) return;
-        if (enable)
-            key.SetValue(RunRegistryValue, $"\"{Environment.ProcessPath}\"");
+        if (!_isPrimary || index >= _accounts.Count) return;
+        var (client, panel, _) = _accounts[index];
+
+        panel.ShowLoadingState();
+        StartSpinnerTimer();
+
+        var usage = await client.GetUsageAsync(forceRefresh: true);
+        StopSpinner();
+
+        if (usage != null)
+        {
+            _accounts[index] = (client, panel, usage);
+            panel.UpdateBars(usage);
+            _historyStore.Append(client.AccountKey, usage);
+            NotificationService.Instance.CheckAndNotify(client.AccountKey, usage);
+            if (client.AccountKey != null)
+                SharedUsage[client.AccountKey] = usage;
+        }
         else
-            key.DeleteValue(RunRegistryValue, throwOnMissingValue: false);
+        {
+            panel.ShowErrorState(client.LastError);
+        }
+        UsageUpdated?.Invoke();
     }
 
     private void OnRightClick(object sender, MouseButtonEventArgs e)
     {
-#if DEBUG
-        const bool isExe = false;
-#else
-        const bool isExe = true;
-#endif
-
         HidePopup();
 
+        var settings = SettingsStore.Instance;
         var menu = new ContextMenuWindow { Owner = this };
-        menu.AddCheckItem("Run at startup", IsStartupEnabled(), isExe, SetStartup);
+
+        menu.AddCheckItem("Always on top", settings.AlwaysOnTop, true, on =>
+        {
+            settings.AlwaysOnTop = on;
+            settings.Save();
+            if (on)
+            {
+                Topmost = true;
+                _topMostEnforcer?.Resume();
+            }
+            else
+            {
+                _topMostEnforcer?.Pause();
+                Topmost = false;
+            }
+        });
         menu.AddSeparator();
-        var updateLabel = _latestRelease != null ? $"Update to v{_latestRelease.Version}" : "Update to latest";
-        menu.AddItem(updateLabel, () => _ = UpdateAsync());
+        if (_latestRelease != null)
+        {
+            menu.AddItem($"Update to v{_latestRelease.Version}", () => _ = UpdateAsync());
+            menu.AddSeparator();
+        }
+        menu.AddItem("Open Settings", OpenSettings);
         menu.AddSeparator();
         menu.AddItem("Quit", () => Application.Current.Shutdown());
 
         menu.ShowAbove(Left, Top);
+    }
+
+    private void OpenSettings()
+    {
+        if (_settingsWindow != null)
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+        _settingsWindow = new SettingsWindow();
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
     }
 }
