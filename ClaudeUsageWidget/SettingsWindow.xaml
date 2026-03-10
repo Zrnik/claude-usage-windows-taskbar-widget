@@ -25,9 +25,13 @@
             <CheckBox x:Name="StartupCheck" Content="Run at startup"
                       Foreground="White" FontSize="11" Margin="0,0,0,12"/>
 
-            <Button x:Name="CloseButton" Content="Close" HorizontalAlignment="Right"
-                    Padding="16,4" FontSize="11" Cursor="Hand"
-                    Background="#333333" Foreground="White" BorderBrush="#555555"/>
+            <Grid>
+                <TextBlock x:Name="VersionText" Foreground="#555555" FontSize="9"
+                           VerticalAlignment="Center"/>
+                <Button x:Name="CloseButton" Content="Close" HorizontalAlignment="Right"
+                        Padding="16,4" FontSize="11" Cursor="Hand"
+                        Background="#333333" Foreground="White" BorderBrush="#555555"/>
+            </Grid>
         </StackPanel>
     </Border>
 </Window>

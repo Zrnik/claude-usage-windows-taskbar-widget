@@ -12,6 +12,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+        VersionText.Text = $"v{Updater.CurrentVersion}";
 
         var settings = SettingsStore.Instance;
         NotificationsCheck.IsChecked = settings.NotificationsEnabled;

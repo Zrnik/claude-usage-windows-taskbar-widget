@@ -155,17 +155,38 @@ public partial class PopupWindow : Window
             });
         }
 
-        if (!string.IsNullOrEmpty(credentialPath))
         {
             AddSeparator();
-            LimitsPanel.Children.Add(new TextBlock
+            var footerGrid = new Grid();
+            footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            if (!string.IsNullOrEmpty(credentialPath))
             {
-                Text = credentialPath,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+                var pathBlock = new TextBlock
+                {
+                    Text = credentialPath,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+                    FontSize = 8,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 220
+                };
+                Grid.SetColumn(pathBlock, 0);
+                footerGrid.Children.Add(pathBlock);
+            }
+
+            var versionBlock = new TextBlock
+            {
+                Text = $"v{Updater.CurrentVersion}",
+                Foreground = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
                 FontSize = 8,
-                TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 260
-            });
+                VerticalAlignment = VerticalAlignment.Bottom,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            Grid.SetColumn(versionBlock, 1);
+            footerGrid.Children.Add(versionBlock);
+
+            LimitsPanel.Children.Add(footerGrid);
         }
 
         // Remove trailing margin from last data item
