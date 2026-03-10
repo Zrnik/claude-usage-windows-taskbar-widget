@@ -104,7 +104,7 @@ public partial class PopupWindow : Window
                 resetGrid.Children.Add(countdown);
                 resetGrid.Children.Add(resetDate);
 
-                var chart = new HistoryChart { Margin = new Thickness(0, 2, 0, 6) };
+                var chart = new HistoryChart { Margin = new Thickness(0, 2, 0, 2) };
                 if (accountKey != null)
                 {
                     var history = UsageHistoryStore.Instance.GetUtilizationHistory(accountKey, limit.Label);
@@ -115,6 +115,29 @@ public partial class PopupWindow : Window
                 LimitsPanel.Children.Add(barContainer);
                 LimitsPanel.Children.Add(resetGrid);
                 LimitsPanel.Children.Add(chart);
+
+                var prediction = UsagePrediction.Predict(accountKey, limit);
+                if (prediction != null)
+                {
+                    var predColor = prediction.Kind switch
+                    {
+                        PredictionResult.PredictionKind.LimitReached => Color.FromRgb(0xF4, 0x43, 0x36),
+                        PredictionResult.PredictionKind.Approaching => Color.FromRgb(0xFF, 0x98, 0x00),
+                        _ => Color.FromRgb(0x88, 0x88, 0x88)
+                    };
+                    LimitsPanel.Children.Add(new TextBlock
+                    {
+                        Text = prediction.Format(),
+                        Foreground = new SolidColorBrush(predColor),
+                        FontSize = 9,
+                        Margin = new Thickness(0, 0, 0, 6)
+                    });
+                }
+                else
+                {
+                    // Keep spacing consistent when no prediction
+                    chart.Margin = new Thickness(0, 2, 0, 6);
+                }
             }
         }
 
