@@ -6,6 +6,7 @@ public partial class SettingsWindow : Window
 {
     private const string RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string RunRegistryValue = "ClaudeUsageWidget";
+    private bool _closing;
 
     public SettingsWindow()
     {
@@ -27,8 +28,15 @@ public partial class SettingsWindow : Window
         StartupCheck.Checked += (_, _) => SetStartup(true);
         StartupCheck.Unchecked += (_, _) => SetStartup(false);
 
-        CloseButton.Click += (_, _) => Close();
-        Deactivated += (_, _) => Close();
+        CloseButton.Click += (_, _) => SafeClose();
+        Deactivated += (_, _) => SafeClose();
+    }
+
+    private void SafeClose()
+    {
+        if (_closing) return;
+        _closing = true;
+        Close();
     }
 
     private void SaveSettings()

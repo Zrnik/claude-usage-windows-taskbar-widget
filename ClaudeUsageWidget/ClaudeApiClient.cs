@@ -95,7 +95,7 @@ internal sealed class ClaudeApiClient : IDisposable
 
         try
         {
-            var usage = await FetchUsageFromRateLimitHeadersAsync();
+            var usage = await FetchWithRetryAsync();
             if (usage != null)
             {
                 LastError = null;
@@ -145,6 +145,26 @@ internal sealed class ClaudeApiClient : IDisposable
             LastError = ex.Message;
             return _cachedUsage;
         }
+    }
+
+    private static bool IsTransient(Exception ex) =>
+        ex is HttpRequestException or TaskCanceledException;
+
+    private async Task<UsageData?> FetchWithRetryAsync()
+    {
+        const int maxRetries = 2;
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                return await FetchUsageFromRateLimitHeadersAsync();
+            }
+            catch (Exception ex) when (IsTransient(ex) && attempt < maxRetries - 1)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5 * (attempt + 1)));
+            }
+        }
+        return await FetchUsageFromRateLimitHeadersAsync(); // last attempt — let it throw
     }
 
     private async Task<UsageData?> FetchUsageFromRateLimitHeadersAsync()
