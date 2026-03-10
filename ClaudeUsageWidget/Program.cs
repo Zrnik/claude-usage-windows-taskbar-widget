@@ -18,6 +18,9 @@ internal class App : Application
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
+    [DllImport("shell32.dll")]
+    private static extern int SetCurrentProcessExplicitAppUserModelId([MarshalAs(UnmanagedType.LPWStr)] string appId);
+
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
     [STAThread]
@@ -52,6 +55,8 @@ internal class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        SetCurrentProcessExplicitAppUserModelId("ClaudeUsageWidget");
 
         _mutex = new Mutex(initiallyOwned: true, "Local\\ClaudeUsageWidget", out bool createdNew);
         if (!createdNew)
