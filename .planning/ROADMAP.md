@@ -5,6 +5,7 @@
 - ✅ **v0.1.9 MVP** — Phases 1-3 (shipped 2026-03-07)
 - ✅ **v0.1.10 Multi-account** — Phases 4-5 (shipped 2026-03-07)
 - ✅ **v0.1.11 Usage History** — Phases 6-8 (shipped 2026-03-07)
+- 🔨 **v0.1.12 Chart Windows** — Phases 9-11
 
 ## Phases
 
@@ -29,6 +30,63 @@ Phases 6-8 delivered stability fixes and history charts: single instance enforce
 
 </details>
 
+### v0.1.12 Chart Windows (Phases 9-11)
+
+---
+
+### Phase 9: Time-Anchored Charts + Tech Debt
+
+**Goal:** Refaktorovat HistoryChart na časově ukotvenou osu X s interpolací mezer a vyčistit tech debt.
+
+**Requirements:** CHART-01, CHART-03, DEBT-01
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — ExtractAccountKey tech debt elimination (DEBT-01)
+- [ ] 09-02-PLAN.md — Time-anchored chart with gap processing (CHART-01, CHART-03)
+
+**Dependencies:** None
+
+**Success Criteria:**
+1. Osa X grafu odpovídá reálnému času — body jsou umístěny podle svého timestampu
+2. Při mezeře < 2h v datech se hodnoty lineárně interpolují (žádné zuby)
+3. Při mezeře ≥ 2h graf klesne na 0 (vizuálně jasná přerušení)
+4. ExtractAccountKey() v ClaudeApiClient odstraněn — volá CredentialStore.GetAccountKey()
+
+---
+
+### Phase 10: Per-Key Chart Windows
+
+**Goal:** Každý rate limit klíč zobrazuje graf s vlastním časovým oknem dle defaultů.
+
+**Requirements:** CHART-02
+
+**Dependencies:** Phase 9
+
+**Success Criteria:**
+1. 5H graf zobrazuje posledních 2 dny dat
+2. 7D graf zobrazuje posledních 14 dní dat
+3. SESSION/100H graf zobrazuje posledních 14 dní dat
+4. REVIEW graf zobrazuje posledních 7 dní dat
+5. Každý graf renderuje pouze data v rámci svého okna
+
+---
+
+### Phase 11: Settings UI + Persistence
+
+**Goal:** Uživatel může v Settings okně měnit časové okno per klíč s okamžitým překreslením.
+
+**Requirements:** SETT-01, SETT-02, SETT-03
+
+**Dependencies:** Phase 10
+
+**Success Criteria:**
+1. Settings okno obsahuje nastavení časového okna pro každý rate limit klíč
+2. Defaultní hodnoty odpovídají hardcoded defaults (5H=2d, 7D=14d, SESSION=14d, REVIEW=7d)
+3. Nastavení se persistuje do AppData JSON (přežije restart widgetu)
+4. Změna hodnoty v Settings okně okamžitě překreslí odpovídající graf
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -41,3 +99,6 @@ Phases 6-8 delivered stability fixes and history charts: single instance enforce
 | 6. Stability | v0.1.11 | 2/2 | Complete | 2026-03-07 |
 | 7. History Persistence | v0.1.11 | 1/1 | Complete | 2026-03-07 |
 | 8. Tooltip & Chart | v0.1.11 | 2/2 | Complete | 2026-03-07 |
+| 9. Time-Anchored Charts + Tech Debt | v0.1.12 | 0/2 | Planned | - |
+| 10. Per-Key Chart Windows | v0.1.12 | 0/0 | Planned | - |
+| 11. Settings UI + Persistence | v0.1.12 | 0/0 | Planned | - |

@@ -41,12 +41,12 @@ Okamžitě viditelné vytížení Claude limitů přímo v taskbaru — bez klik
 - [ ] Real-time překreslení grafu při změně nastavení
 - [ ] ExtractAccountKey() refactor — deduplikace s CredentialStore.GetAccountKey()
 
-## Current Milestone: v0.2.0 Chart Windows
+## Current Milestone: v0.1.12 Chart Windows
 
 **Goal:** Časově ukotvené grafy s konfigurovatelným oknem per rate limit klíč a Settings UI.
 
 **Target features:**
-- Časově ukotvené sparkline grafy (osa X = reálný čas)
+- Časově ukotvené sparkline grafy (osa X = reálný čas, interpolace < 2h, drop na 0 ≥ 2h)
 - Per-key defaultní okno: 5H=2d, 7D=14d, SESSION/100H=14d, REVIEW=7d
 - Settings okno pro změnu časového okna per klíč
 - Real-time překreslení při změně nastavení
