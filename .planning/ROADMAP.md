@@ -62,7 +62,7 @@ Plans:
 
 **Requirements:** CHART-02
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 10-01-PLAN.md — Per-key time windows + >100% color system (CHART-02)
@@ -110,5 +110,5 @@ Plans:
 | 7. History Persistence | v0.1.11 | 1/1 | Complete | 2026-03-07 |
 | 8. Tooltip & Chart | v0.1.11 | 2/2 | Complete | 2026-03-07 |
 | 9. Time-Anchored Charts + Tech Debt | v0.1.12 | 0/2 | Planned | - |
-| 10. Per-Key Chart Windows + Extra Usage | v0.1.12 | 0/3 | Planned | - |
+| 10. Per-Key Chart Windows + Extra Usage | 1/3 | In Progress|  | - |
 | 11. Settings UI + Persistence | v0.1.12 | 0/0 | Planned | - |
