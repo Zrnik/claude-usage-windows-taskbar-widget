@@ -17,6 +17,7 @@ public partial class SettingsWindow : Window
         var settings = SettingsStore.Instance;
         NotificationsCheck.IsChecked = settings.NotificationsEnabled;
         NotifyResetCheck.IsChecked = settings.NotifyOnReset;
+        SpendLimitBox.Text = settings.SpendLimit.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
         StartupCheck.IsChecked = IsStartupEnabled();
 
 #if DEBUG
@@ -27,6 +28,7 @@ public partial class SettingsWindow : Window
         NotificationsCheck.Unchecked += (_, _) => SaveSettings();
         NotifyResetCheck.Checked += (_, _) => SaveSettings();
         NotifyResetCheck.Unchecked += (_, _) => SaveSettings();
+        SpendLimitBox.LostFocus += (_, _) => SaveSettings();
         StartupCheck.Checked += (_, _) => SetStartup(true);
         StartupCheck.Unchecked += (_, _) => SetStartup(false);
 
@@ -51,6 +53,9 @@ public partial class SettingsWindow : Window
         var settings = SettingsStore.Instance;
         settings.NotificationsEnabled = NotificationsCheck.IsChecked == true;
         settings.NotifyOnReset = NotifyResetCheck.IsChecked == true;
+        if (double.TryParse(SpendLimitBox.Text, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var spend) && spend >= 0)
+            settings.SpendLimit = spend;
         settings.Save();
     }
 

@@ -15,6 +15,8 @@ public sealed class RateLimitEntry
 public sealed class UsageData
 {
     public List<RateLimitEntry> Limits { get; set; } = [];
+    public double? SpendUsed { get; set; }
+    public double? SpendLimit { get; set; }
 }
 
 internal sealed class ClaudeApiClient : IDisposable
@@ -185,7 +187,25 @@ internal sealed class ClaudeApiClient : IDisposable
         }
 
         if (limits.Count == 0) return null;
-        return new UsageData { Limits = limits.Values.ToList() };
+
+        var result = new UsageData { Limits = limits.Values.ToList() };
+
+        // Mock spend data — TODO: replace with real API data once extra usage headers are discovered
+        var spendLimit = SettingsStore.Instance.SpendLimit;
+        if (spendLimit > 0)
+        {
+            const double mockSpendUsed = 22.2;
+            result.SpendUsed = mockSpendUsed;
+            result.SpendLimit = spendLimit;
+            result.Limits.Add(new RateLimitEntry
+            {
+                Label = "spend",
+                Utilization = mockSpendUsed / spendLimit * 100,
+                ResetsAt = DateTimeOffset.UtcNow.AddDays(30) // mock: monthly reset
+            });
+        }
+
+        return result;
     }
 
     private async Task<HttpResponseMessage?> ProbeModelAsync(string model)

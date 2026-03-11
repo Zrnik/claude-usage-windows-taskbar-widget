@@ -47,9 +47,13 @@ public partial class PopupWindow : Window
         {
             foreach (var limit in data.Limits)
             {
+                var labelText = FormatLabel(limit.Label);
+                if (limit.Label == "spend" && data.SpendUsed.HasValue && data.SpendLimit.HasValue)
+                    labelText += $"  ${data.SpendUsed:0.00} / ${data.SpendLimit:0.00}";
+
                 var label = new TextBlock
                 {
-                    Text = FormatLabel(limit.Label),
+                    Text = labelText,
                     Foreground = Brushes.Gray,
                     FontSize = 9,
                     Margin = new Thickness(0, 0, 0, 2)
