@@ -67,6 +67,14 @@ public partial class HistoryChart : UserControl
         var windowSpanSeconds = (windowEnd - windowStart).TotalSeconds;
 
         var processed = ProcessGaps(_points);
+
+        double maxValue = 100.0;
+        foreach (var p in processed)
+            if (p.Value > maxValue) maxValue = p.Value;
+        // Round up to nearest 10 for clean Y axis (e.g. 137% -> 140%)
+        if (maxValue > 100.0)
+            maxValue = Math.Ceiling(maxValue / 10.0) * 10.0;
+
         var segments = BuildColorSegments(processed);
 
         foreach (var seg in segments)
@@ -80,7 +88,7 @@ public partial class HistoryChart : UserControl
             foreach (var i in seg.Indices)
             {
                 double x = TimestampToX(processed[i].Ts, windowStart, windowSpanSeconds, w);
-                double y = PadY + (1.0 - processed[i].Value / 100.0) * (h - 2 * PadY);
+                double y = PadY + (1.0 - processed[i].Value / maxValue) * (h - 2 * PadY);
                 points.Add(new Point(x, y));
             }
 
@@ -106,6 +114,23 @@ public partial class HistoryChart : UserControl
                 Fill = null
             };
             ChartCanvas.Children.Add(line);
+        }
+
+        // Draw 100% reference line when Y axis extends beyond 100%
+        if (maxValue > 100.0)
+        {
+            double lineY = PadY + (1.0 - 100.0 / maxValue) * (h - 2 * PadY);
+            var refLine = new Line
+            {
+                X1 = PadX,
+                Y1 = lineY,
+                X2 = w - PadX,
+                Y2 = lineY,
+                Stroke = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
+                StrokeThickness = 0.5,
+                StrokeDashArray = new DoubleCollection { 4, 3 }
+            };
+            ChartCanvas.Children.Add(refLine);
         }
     }
 
