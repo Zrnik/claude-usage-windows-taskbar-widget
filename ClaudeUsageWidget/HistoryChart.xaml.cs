@@ -17,7 +17,7 @@ public partial class HistoryChart : UserControl
     private List<(DateTimeOffset Ts, double Value)>? _points;
     private TimeSpan _timeWindow = TimeSpan.FromDays(14);
 
-    private enum SegmentColor { Green, Orange, Red, OverLimit }
+    private enum SegmentColor { Green, Orange, Purple, OverLimit }
     private record ColorSegment(SegmentColor Color, List<int> Indices);
 
     public HistoryChart()
@@ -150,10 +150,8 @@ public partial class HistoryChart : UserControl
                 var gap = raw[i + 1].Ts - raw[i].Ts;
                 if (gap >= GapThreshold)
                 {
-                    // Immediate drop to 0 after last real point
-                    result.Add((raw[i].Ts.AddSeconds(1), 0.0));
-                    // Stay at 0 until just before next real point
-                    result.Add((raw[i + 1].Ts.AddSeconds(-1), 0.0));
+                    // Hold last known value until just before next real point
+                    result.Add((raw[i + 1].Ts.AddSeconds(-1), raw[i].Value));
                 }
             }
         }
@@ -200,7 +198,7 @@ public partial class HistoryChart : UserControl
 
     private static SegmentColor Classify(double value) =>
         value >= 100.0 ? SegmentColor.OverLimit :
-        value >= 90.0 ? SegmentColor.Red :
+        value >= 90.0 ? SegmentColor.Purple :
         value >= 75.0 ? SegmentColor.Orange :
         SegmentColor.Green;
 
@@ -208,8 +206,8 @@ public partial class HistoryChart : UserControl
     {
         SegmentColor.Green => Color.FromRgb(0x4C, 0xAF, 0x50),
         SegmentColor.Orange => Color.FromRgb(0xFF, 0x98, 0x00),
-        SegmentColor.Red => Color.FromRgb(0xF4, 0x43, 0x36),
-        SegmentColor.OverLimit => Color.FromRgb(0x9C, 0x27, 0xB0),
+        SegmentColor.Purple => Color.FromRgb(0x9C, 0x27, 0xB0),
+        SegmentColor.OverLimit => Color.FromRgb(0xF4, 0x43, 0x36),
         _ => Color.FromRgb(0x4C, 0xAF, 0x50)
     };
 

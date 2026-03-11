@@ -227,8 +227,8 @@ public partial class AccountPanel : UserControl
     private static void SetBarColor(Border? indicator, double utilization)
     {
         if (indicator == null) return;
-        var color = utilization >= 100 ? "#9C27B0"
-            : utilization >= 90 ? "#F44336"
+        var color = utilization >= 100 ? "#F44336"
+            : utilization >= 90 ? "#9C27B0"
             : utilization >= 75 ? "#FF9800"
             : "#4CAF50";
         indicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));

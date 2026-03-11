@@ -226,8 +226,8 @@ public partial class PopupWindow : Window
     }
 
     private static SolidColorBrush GetBarBrush(double utilization) =>
-        new(utilization >= 100 ? Color.FromRgb(0x9C, 0x27, 0xB0)
-            : utilization >= 90 ? Color.FromRgb(0xF4, 0x43, 0x36)
+        new(utilization >= 100 ? Color.FromRgb(0xF4, 0x43, 0x36)
+            : utilization >= 90 ? Color.FromRgb(0x9C, 0x27, 0xB0)
             : utilization >= 75 ? Color.FromRgb(0xFF, 0x98, 0x00)
             : Color.FromRgb(0x4C, 0xAF, 0x50));
 }
