@@ -15,8 +15,9 @@ public partial class HistoryChart : UserControl
     private static readonly TimeSpan GapThreshold = TimeSpan.FromHours(2);
 
     private List<(DateTimeOffset Ts, double Value)>? _points;
+    private TimeSpan _timeWindow = TimeSpan.FromDays(14);
 
-    private enum SegmentColor { Green, Orange, Red }
+    private enum SegmentColor { Green, Orange, Red, OverLimit }
     private record ColorSegment(SegmentColor Color, List<int> Indices);
 
     public HistoryChart()
@@ -27,11 +28,15 @@ public partial class HistoryChart : UserControl
 
     internal void SetData(IReadOnlyList<HistoryRecord> records, string label)
     {
+        _timeWindow = TimeWindowForLabel(label);
+        var cutoff = DateTimeOffset.UtcNow - _timeWindow;
+
         _points = records
             .Where(r => r.Limits.ContainsKey(label))
             .Select(r => (
                 Ts: DateTimeOffset.Parse(r.Timestamp, CultureInfo.InvariantCulture),
                 Value: r.Limits[label]))
+            .Where(p => p.Ts >= cutoff)
             .OrderBy(p => p.Ts)
             .ToList();
 
@@ -58,7 +63,7 @@ public partial class HistoryChart : UserControl
             return;
 
         var windowEnd = DateTimeOffset.UtcNow;
-        var windowStart = windowEnd.AddDays(-14);
+        var windowStart = windowEnd - _timeWindow;
         var windowSpanSeconds = (windowEnd - windowStart).TotalSeconds;
 
         var processed = ProcessGaps(_points);
@@ -167,15 +172,31 @@ public partial class HistoryChart : UserControl
     }
 
     private static SegmentColor Classify(double value) =>
-        value < 75.0 ? SegmentColor.Green :
-        value < 90.0 ? SegmentColor.Orange :
-        SegmentColor.Red;
+        value >= 100.0 ? SegmentColor.OverLimit :
+        value >= 90.0 ? SegmentColor.Red :
+        value >= 75.0 ? SegmentColor.Orange :
+        SegmentColor.Green;
 
     private static Color GetColor(SegmentColor seg) => seg switch
     {
         SegmentColor.Green => Color.FromRgb(0x4C, 0xAF, 0x50),
         SegmentColor.Orange => Color.FromRgb(0xFF, 0x98, 0x00),
         SegmentColor.Red => Color.FromRgb(0xF4, 0x43, 0x36),
+        SegmentColor.OverLimit => Color.FromRgb(0x9C, 0x27, 0xB0),
         _ => Color.FromRgb(0x4C, 0xAF, 0x50)
     };
+
+    private static TimeSpan TimeWindowForLabel(string label)
+    {
+        if (label.Contains("5h", StringComparison.OrdinalIgnoreCase))
+            return TimeSpan.FromDays(2);
+        if (label.Contains("7d", StringComparison.OrdinalIgnoreCase))
+            return TimeSpan.FromDays(14);
+        if (label.Contains("session", StringComparison.OrdinalIgnoreCase) ||
+            label.Contains("100h", StringComparison.OrdinalIgnoreCase))
+            return TimeSpan.FromDays(14);
+        if (label.Contains("review", StringComparison.OrdinalIgnoreCase))
+            return TimeSpan.FromDays(7);
+        return TimeSpan.FromDays(14);
+    }
 }
