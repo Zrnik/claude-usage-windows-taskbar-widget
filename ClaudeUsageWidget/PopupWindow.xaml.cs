@@ -107,7 +107,7 @@ public partial class PopupWindow : Window
                 var chart = new HistoryChart { Margin = new Thickness(0, 2, 0, 2) };
                 if (accountKey != null)
                 {
-                    var history = UsageHistoryStore.Instance.GetUtilizationHistory(accountKey, limit.Label);
+                    var history = UsageHistoryStore.Instance.GetHistory(accountKey);
                     chart.SetData(history, limit.Label);
                 }
 
