@@ -364,7 +364,7 @@ internal static class CredentialStore
         catch { return null; }
     }
 
-    private static string? GetAccountKey(string token, ServiceType service)
+    internal static string? GetAccountKey(string token, ServiceType service)
     {
         if (service == ServiceType.Claude)
         {
@@ -380,6 +380,21 @@ internal static class CredentialStore
                          ?? GetJwtClaim(token, "sub");
             return accountId != null ? "codex:" + accountId : null;
         }
+    }
+
+    internal static string? GetAccountKey(AccountInfo account)
+    {
+        var key = GetAccountKey(account.Credential.AccessToken, account.Service);
+        if (key != null) return key;
+
+        // Opaque token fallback (sk-ant-oat01-...) — no JWT payload to decode
+        if (account.Service == ServiceType.Claude &&
+            !string.IsNullOrEmpty(account.Credential.AccessToken))
+        {
+            var suffix = account.Credential.SourcePath.StartsWith("wsl:") ? "wsl" : "win";
+            return "claude:" + suffix;
+        }
+        return null;
     }
 
     public static OAuthCredential? LoadCredentialFromPath(string sourcePath)

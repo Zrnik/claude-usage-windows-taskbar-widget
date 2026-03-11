@@ -1,26 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.1.11
-milestone_name: Usage History
-status: complete
-stopped_at: "milestone complete — v0.1.11 shipped 2026-03-07"
-last_updated: "2026-03-07T20:00:00.000Z"
-last_activity: 2026-03-07 — Completed v0.1.11 milestone
+milestone: v0.2.0
+milestone_name: Chart Windows
+status: active
+stopped_at: null
+last_updated: "2026-03-11T00:00:00.000Z"
+last_activity: 2026-03-11 — Milestone v0.2.0 started
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-07 after v0.1.11)
+See: .planning/PROJECT.md (updated 2026-03-11 after v0.2.0 start)
 
 **Core value:** Okamžitě viditelné vytížení Claude limitů přímo v taskbaru — bez klikání, bez otevírání oken.
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v0.2.0
+
+## Current Position
+
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-11 — Milestone v0.2.0 started
 
 ## Pending Todos
 
@@ -29,4 +36,4 @@ See: .planning/PROJECT.md (updated 2026-03-07 after v0.1.11)
 ## Known Tech Debt
 
 - Phase 02 nemá VERIFICATION.md — dokumentační problém, implementace funguje
-- ExtractAccountKey() v ClaudeApiClient duplikuje logiku CredentialStore.GetAccountKey() — refactor deferred
+- ExtractAccountKey() v ClaudeApiClient duplikuje logiku CredentialStore.GetAccountKey() — scheduled for v0.2.0
