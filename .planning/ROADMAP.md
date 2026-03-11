@@ -56,11 +56,18 @@ Plans:
 
 ---
 
-### Phase 10: Per-Key Chart Windows
+### Phase 10: Per-Key Chart Windows + Extra Usage
 
-**Goal:** Každý rate limit klíč zobrazuje graf s vlastním časovým oknem dle defaultů.
+**Goal:** Každý rate limit klíč zobrazuje graf s vlastním časovým oknem dle defaultů. Vizualizace extra usage (>100%) v grafech i progress barech. Research API pro spend data.
 
 **Requirements:** CHART-02
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Per-key time windows + >100% color system (CHART-02)
+- [ ] 10-02-PLAN.md — Dynamic Y axis + 100% reference line
+- [ ] 10-03-PLAN.md — Extra usage spend bar research + decision
 
 **Dependencies:** Phase 9
 
@@ -70,6 +77,9 @@ Plans:
 3. SESSION/100H graf zobrazuje posledních 14 dní dat
 4. REVIEW graf zobrazuje posledních 7 dní dat
 5. Každý graf renderuje pouze data v rámci svého okna
+6. Utilization >100% zobrazena purpurovou barvou konzistentně v grafech i progress barech
+7. Y osa grafu se dynamicky rozšíří při hodnotách >100%
+8. Tenká čára na 100% hranici v grafu při dynamické Y ose
 
 ---
 
@@ -100,5 +110,5 @@ Plans:
 | 7. History Persistence | v0.1.11 | 1/1 | Complete | 2026-03-07 |
 | 8. Tooltip & Chart | v0.1.11 | 2/2 | Complete | 2026-03-07 |
 | 9. Time-Anchored Charts + Tech Debt | v0.1.12 | 0/2 | Planned | - |
-| 10. Per-Key Chart Windows | v0.1.12 | 0/0 | Planned | - |
+| 10. Per-Key Chart Windows + Extra Usage | v0.1.12 | 0/3 | Planned | - |
 | 11. Settings UI + Persistence | v0.1.12 | 0/0 | Planned | - |
