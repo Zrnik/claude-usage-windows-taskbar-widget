@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -8,11 +9,12 @@ namespace ClaudeUsageWidgetProvider;
 
 public partial class HistoryChart : UserControl
 {
-    private const int TargetLength = 2016; // 14d × 144 bucketů/den (10min interval)
     private const double PadX = 2.0;
     private const double PadY = 2.0;
 
-    private IReadOnlyList<double>? _values;
+    private static readonly TimeSpan GapThreshold = TimeSpan.FromHours(2);
+
+    private List<(DateTimeOffset Ts, double Value)>? _points;
 
     private enum SegmentColor { Green, Orange, Red }
     private record ColorSegment(SegmentColor Color, List<int> Indices);
@@ -23,9 +25,16 @@ public partial class HistoryChart : UserControl
         SizeChanged += (_, _) => RenderChart();
     }
 
-    public void SetData(IReadOnlyList<double> values, string label)
+    internal void SetData(IReadOnlyList<HistoryRecord> records, string label)
     {
-        _values = values;
+        _points = records
+            .Where(r => r.Limits.ContainsKey(label))
+            .Select(r => (
+                Ts: DateTimeOffset.Parse(r.Timestamp, CultureInfo.InvariantCulture),
+                Value: r.Limits[label]))
+            .OrderBy(p => p.Ts)
+            .ToList();
+
         if (IsLoaded && ActualWidth > 0)
             RenderChart();
     }
@@ -40,7 +49,7 @@ public partial class HistoryChart : UserControl
     private void RenderChart()
     {
         ChartCanvas.Children.Clear();
-        if (_values == null || _values.Count == 0)
+        if (_points == null || _points.Count < 2)
             return;
 
         double w = ChartCanvas.ActualWidth;
@@ -48,8 +57,12 @@ public partial class HistoryChart : UserControl
         if (w <= 0 || h <= 0)
             return;
 
-        var padded = PadToLength(_values, TargetLength);
-        var segments = BuildColorSegments(padded);
+        var windowEnd = DateTimeOffset.UtcNow;
+        var windowStart = windowEnd.AddDays(-14);
+        var windowSpanSeconds = (windowEnd - windowStart).TotalSeconds;
+
+        var processed = ProcessGaps(_points);
+        var segments = BuildColorSegments(processed);
 
         foreach (var seg in segments)
         {
@@ -61,8 +74,8 @@ public partial class HistoryChart : UserControl
 
             foreach (var i in seg.Indices)
             {
-                double x = PadX + i * (w - 2 * PadX) / Math.Max(padded.Length - 1, 1);
-                double y = PadY + (1.0 - padded[i] / 100.0) * (h - 2 * PadY);
+                double x = TimestampToX(processed[i].Ts, windowStart, windowSpanSeconds, w);
+                double y = PadY + (1.0 - processed[i].Value / 100.0) * (h - 2 * PadY);
                 points.Add(new Point(x, y));
             }
 
@@ -91,30 +104,49 @@ public partial class HistoryChart : UserControl
         }
     }
 
-    private static double[] PadToLength(IReadOnlyList<double> values, int length)
+    private static List<(DateTimeOffset Ts, double Value)> ProcessGaps(
+        List<(DateTimeOffset Ts, double Value)> raw)
     {
-        var result = new double[length];
-        int offset = length - values.Count;
-        if (offset < 0) offset = 0;
+        if (raw.Count == 0) return raw;
 
-        for (int i = 0; i < values.Count && (offset + i) < length; i++)
-            result[offset + i] = values[i];
-
+        var result = new List<(DateTimeOffset Ts, double Value)>();
+        for (int i = 0; i < raw.Count; i++)
+        {
+            result.Add(raw[i]);
+            if (i < raw.Count - 1)
+            {
+                var gap = raw[i + 1].Ts - raw[i].Ts;
+                if (gap >= GapThreshold)
+                {
+                    // Immediate drop to 0 after last real point
+                    result.Add((raw[i].Ts.AddSeconds(1), 0.0));
+                    // Stay at 0 until just before next real point
+                    result.Add((raw[i + 1].Ts.AddSeconds(-1), 0.0));
+                }
+            }
+        }
         return result;
     }
 
-    private static List<ColorSegment> BuildColorSegments(double[] values)
+    private static double TimestampToX(DateTimeOffset ts, DateTimeOffset windowStart,
+        double windowSpanSeconds, double chartWidth)
+    {
+        var offset = (ts - windowStart).TotalSeconds;
+        return PadX + (offset / windowSpanSeconds) * (chartWidth - 2 * PadX);
+    }
+
+    private static List<ColorSegment> BuildColorSegments(List<(DateTimeOffset Ts, double Value)> points)
     {
         var segments = new List<ColorSegment>();
-        if (values.Length == 0)
+        if (points.Count == 0)
             return segments;
 
-        var currentColor = Classify(values[0]);
+        var currentColor = Classify(points[0].Value);
         var currentIndices = new List<int> { 0 };
 
-        for (int i = 1; i < values.Length; i++)
+        for (int i = 1; i < points.Count; i++)
         {
-            var c = Classify(values[i]);
+            var c = Classify(points[i].Value);
             if (c == currentColor)
             {
                 currentIndices.Add(i);
