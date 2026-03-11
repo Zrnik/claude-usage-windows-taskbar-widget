@@ -116,18 +116,20 @@ public partial class HistoryChart : UserControl
             ChartCanvas.Children.Add(line);
         }
 
-        // Draw 100% reference line when Y axis extends beyond 100%
-        if (maxValue > 100.0)
+        // Draw reference lines every 25%
+        for (double pct = 25; pct <= maxValue; pct += 25)
         {
-            double lineY = PadY + (1.0 - 100.0 / maxValue) * (h - 2 * PadY);
+            double lineY = PadY + (1.0 - pct / maxValue) * (h - 2 * PadY);
+            bool is100 = Math.Abs(pct - 100.0) < 0.1;
             var refLine = new Line
             {
                 X1 = PadX,
                 Y1 = lineY,
                 X2 = w - PadX,
                 Y2 = lineY,
-                Stroke = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
-                StrokeThickness = 0.5,
+                Stroke = new SolidColorBrush(Color.FromArgb(
+                    (byte)(is100 ? 0x80 : 0x30), 0xFF, 0xFF, 0xFF)),
+                StrokeThickness = is100 ? 0.5 : 0.5,
                 StrokeDashArray = new DoubleCollection { 4, 3 }
             };
             ChartCanvas.Children.Add(refLine);
