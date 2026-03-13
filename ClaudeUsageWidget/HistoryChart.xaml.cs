@@ -214,18 +214,18 @@ public partial class HistoryChart : UserControl
     public static string TimeWindowLabel(string label)
     {
         var window = GetTimeWindow(label);
-        return window.TotalDays >= 1 ? $"{window.TotalDays:0}d" : $"{window.TotalHours:0}h";
+        return window.TotalDays >= 1 ? $"{window.TotalDays:0.#}d" : $"{window.TotalHours:0.#}h";
     }
 
     public static TimeSpan GetTimeWindow(string label)
     {
-        var overrides = SettingsStore.Instance.ChartWindowDays;
-        if (overrides.TryGetValue(label, out var days))
-            return TimeSpan.FromDays(days);
+        var overrides = SettingsStore.Instance.ChartWindowHours;
+        if (overrides.TryGetValue(label, out var hours))
+            return TimeSpan.FromHours(hours);
         return DefaultTimeWindow(label);
     }
 
-    public static int GetDefaultDays(string label) => (int)DefaultTimeWindow(label).TotalDays;
+    public static double GetDefaultHours(string label) => DefaultTimeWindow(label).TotalHours;
 
     private static TimeSpan DefaultTimeWindow(string label)
     {

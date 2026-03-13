@@ -13,8 +13,8 @@ internal sealed class SettingsStore
     public bool NotifyOnReset { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
 
-    // label → days override (e.g. "unified-5h" → 7)
-    public Dictionary<string, int> ChartWindowDays { get; private set; } = new();
+    // label → hours override (e.g. "unified-5h" → 48)
+    public Dictionary<string, double> ChartWindowHours { get; private set; } = new();
 
     private SettingsStore()
     {
@@ -39,8 +39,11 @@ internal sealed class SettingsStore
             if (key == null) return;
             foreach (var name in key.GetValueNames())
             {
-                if (key.GetValue(name) is int days && days > 0)
-                    ChartWindowDays[name] = days;
+                var raw = key.GetValue(name);
+                double hours = 0;
+                if (raw is int intVal) hours = intVal; // legacy: days stored as DWord
+                else if (raw is string str) double.TryParse(str, System.Globalization.CultureInfo.InvariantCulture, out hours);
+                if (hours > 0) ChartWindowHours[name] = hours;
             }
         }
         catch { }
@@ -60,8 +63,8 @@ internal sealed class SettingsStore
         try
         {
             using var key = Registry.CurrentUser.CreateSubKey(ChartWindowsSubKey);
-            foreach (var (label, days) in ChartWindowDays)
-                key.SetValue(label, days, RegistryValueKind.DWord);
+            foreach (var (label, hours) in ChartWindowHours)
+                key.SetValue(label, hours.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
         }
         catch { }
     }
@@ -74,7 +77,7 @@ internal sealed class SettingsStore
         var result = new Dictionary<string, string>();
 
         // From registry overrides
-        foreach (var label in ChartWindowDays.Keys)
+        foreach (var label in ChartWindowHours.Keys)
             result.TryAdd(label, label);
 
         // From history files

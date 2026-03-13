@@ -54,7 +54,7 @@ public partial class SettingsWindow : Window
 
         ChartWindowsPanel.Children.Add(new TextBlock
         {
-            Text = "Chart time window (days)",
+            Text = "Chart time window (hours)",
             Foreground = Brushes.White,
             FontSize = 11,
             Margin = new Thickness(0, 0, 0, 6)
@@ -62,8 +62,8 @@ public partial class SettingsWindow : Window
 
         foreach (var (label, display) in labels)
         {
-            var currentDays = settings.ChartWindowDays.TryGetValue(label, out var d)
-                ? d : HistoryChart.GetDefaultDays(label);
+            var currentHours = settings.ChartWindowHours.TryGetValue(label, out var h)
+                ? h : HistoryChart.GetDefaultHours(label);
 
             var grid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -80,7 +80,7 @@ public partial class SettingsWindow : Window
 
             var box = new TextBox
             {
-                Text = currentDays.ToString(),
+                Text = currentHours.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture),
                 Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x2A)),
                 Foreground = Brushes.White,
                 BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
@@ -120,8 +120,9 @@ public partial class SettingsWindow : Window
 
         foreach (var (label, box) in _chartWindowBoxes)
         {
-            if (int.TryParse(box.Text, out var days) && days > 0)
-                settings.ChartWindowDays[label] = days;
+            if (double.TryParse(box.Text, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var hours) && hours > 0)
+                settings.ChartWindowHours[label] = hours;
         }
 
         settings.Save();
