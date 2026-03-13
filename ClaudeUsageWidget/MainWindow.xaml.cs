@@ -625,7 +625,11 @@ public partial class MainWindow : Window
         menu.AddSeparator();
         if (_latestRelease != null)
         {
-            menu.AddItem($"Update to v{_latestRelease.Version}", () => _ = UpdateAsync());
+            var isLatest = _latestRelease.Version == Updater.CurrentVersion;
+            var label = isLatest
+                ? $"v{_latestRelease.Version} (latest)"
+                : $"Update to v{_latestRelease.Version}";
+            menu.AddItem(label, () => _ = UpdateAsync());
             menu.AddSeparator();
         }
         menu.AddItem("Open Settings", OpenSettings);

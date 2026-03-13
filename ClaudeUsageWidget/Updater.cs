@@ -56,9 +56,6 @@ internal static class Updater
             var arch = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64";
             var assetName = $"ClaudeUsageWidget-win-{arch}.exe";
 
-            if (!IsNewer(latestVersion, CurrentVersion))
-                return null;
-
             var assets = node["assets"]?.AsArray();
             string? downloadUrl = null;
             if (assets != null)
