@@ -7,11 +7,14 @@ internal sealed class SettingsStore
     public static readonly SettingsStore Instance = new();
 
     private const string RegistryPath = @"Software\ClaudeUsageWidget";
+    private const string ChartWindowsSubKey = @"Software\ClaudeUsageWidget\ChartWindows";
 
     public bool NotificationsEnabled { get; set; }
     public bool NotifyOnReset { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
-    public double SpendLimit { get; set; } = 20.0;
+
+    // label → days override (e.g. "unified-5h" → 7)
+    public Dictionary<string, int> ChartWindowDays { get; private set; } = new();
 
     private SettingsStore()
     {
@@ -27,9 +30,18 @@ internal sealed class SettingsStore
             NotificationsEnabled = (int)(key.GetValue("NotificationsEnabled", 0) ?? 0) != 0;
             NotifyOnReset = (int)(key.GetValue("NotifyOnReset", 0) ?? 0) != 0;
             AlwaysOnTop = (int)(key.GetValue("AlwaysOnTop", 1) ?? 1) != 0;
-            var spendStr = key.GetValue("SpendLimit") as string;
-            if (spendStr != null && double.TryParse(spendStr, System.Globalization.CultureInfo.InvariantCulture, out var spend))
-                SpendLimit = spend;
+        }
+        catch { }
+
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(ChartWindowsSubKey);
+            if (key == null) return;
+            foreach (var name in key.GetValueNames())
+            {
+                if (key.GetValue(name) is int days && days > 0)
+                    ChartWindowDays[name] = days;
+            }
         }
         catch { }
     }
@@ -42,8 +54,54 @@ internal sealed class SettingsStore
             key.SetValue("NotificationsEnabled", NotificationsEnabled ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("NotifyOnReset", NotifyOnReset ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("AlwaysOnTop", AlwaysOnTop ? 1 : 0, RegistryValueKind.DWord);
-            key.SetValue("SpendLimit", SpendLimit.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
         }
         catch { }
+
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(ChartWindowsSubKey);
+            foreach (var (label, days) in ChartWindowDays)
+                key.SetValue(label, days, RegistryValueKind.DWord);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Returns known labels with display prefix, e.g. ("unified-5h", "Claude / unified-5h")
+    /// </summary>
+    public IReadOnlyList<(string Label, string Display)> GetKnownLabels()
+    {
+        var result = new Dictionary<string, string>();
+
+        // From registry overrides
+        foreach (var label in ChartWindowDays.Keys)
+            result.TryAdd(label, label);
+
+        // From history files
+        try
+        {
+            var historyDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "ClaudeUsageWidget", "history");
+            if (Directory.Exists(historyDir))
+            {
+                foreach (var file in Directory.GetFiles(historyDir, "*.json"))
+                {
+                    var fileName = Path.GetFileNameWithoutExtension(file);
+                    var prefix = fileName.StartsWith("codex", StringComparison.OrdinalIgnoreCase)
+                        ? "Codex" : "Claude";
+                    var accountKey = fileName.Replace('_', ':');
+                    var history = UsageHistoryStore.Instance.GetHistory(accountKey);
+                    if (history.Count > 0)
+                    {
+                        foreach (var label in history[^1].Limits.Keys)
+                            result.TryAdd(label, $"{prefix} / {label}");
+                    }
+                }
+            }
+        }
+        catch { }
+
+        return result.Select(kv => (kv.Key, kv.Value)).OrderBy(x => x.Value).ToList();
     }
 }

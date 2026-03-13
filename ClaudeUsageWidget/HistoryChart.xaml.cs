@@ -28,7 +28,7 @@ public partial class HistoryChart : UserControl
 
     internal void SetData(IReadOnlyList<HistoryRecord> records, string label)
     {
-        _timeWindow = TimeWindowForLabel(label);
+        _timeWindow = GetTimeWindow(label);
         var cutoff = DateTimeOffset.UtcNow - _timeWindow;
 
         _points = records
@@ -211,7 +211,23 @@ public partial class HistoryChart : UserControl
         _ => Color.FromRgb(0x4C, 0xAF, 0x50)
     };
 
-    private static TimeSpan TimeWindowForLabel(string label)
+    public static string TimeWindowLabel(string label)
+    {
+        var window = GetTimeWindow(label);
+        return window.TotalDays >= 1 ? $"{window.TotalDays:0}d" : $"{window.TotalHours:0}h";
+    }
+
+    public static TimeSpan GetTimeWindow(string label)
+    {
+        var overrides = SettingsStore.Instance.ChartWindowDays;
+        if (overrides.TryGetValue(label, out var days))
+            return TimeSpan.FromDays(days);
+        return DefaultTimeWindow(label);
+    }
+
+    public static int GetDefaultDays(string label) => (int)DefaultTimeWindow(label).TotalDays;
+
+    private static TimeSpan DefaultTimeWindow(string label)
     {
         if (label.Contains("5h", StringComparison.OrdinalIgnoreCase))
             return TimeSpan.FromDays(2);

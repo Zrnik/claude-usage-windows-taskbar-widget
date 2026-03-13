@@ -115,9 +115,18 @@ public partial class PopupWindow : Window
                     chart.SetData(history, limit.Label);
                 }
 
+                var chartLabel = new TextBlock
+                {
+                    Text = $"History ({HistoryChart.TimeWindowLabel(limit.Label)})",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+                    FontSize = 8,
+                    Margin = new Thickness(0, 4, 0, 0)
+                };
+
                 LimitsPanel.Children.Add(label);
                 LimitsPanel.Children.Add(barContainer);
                 LimitsPanel.Children.Add(resetGrid);
+                LimitsPanel.Children.Add(chartLabel);
                 LimitsPanel.Children.Add(chart);
 
                 var prediction = UsagePrediction.Predict(accountKey, limit);

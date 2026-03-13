@@ -645,12 +645,14 @@ public partial class MainWindow : Window
         {
             if (_settingsWindow.WindowState == WindowState.Minimized)
                 _settingsWindow.WindowState = WindowState.Normal;
+            _settingsWindow.Topmost = true;
             _settingsWindow.Activate();
-            _settingsWindow.Focus();
+            _settingsWindow.Topmost = false;
             return;
         }
         _settingsWindow = new SettingsWindow();
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
+        _settingsWindow.Activate();
     }
 }

@@ -22,22 +22,10 @@
 
             <Border Height="1" Background="#333333" Margin="0,4,0,8"/>
 
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="70"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Extra usage limit (USD)" Foreground="White" FontSize="11"
-                           VerticalAlignment="Center"/>
-                <TextBox x:Name="SpendLimitBox" Grid.Column="1"
-                         Background="#2A2A2A" Foreground="White" BorderBrush="#555555"
-                         FontSize="11" Padding="4,2" HorizontalContentAlignment="Right"/>
-            </Grid>
-
-            <Border Height="1" Background="#333333" Margin="0,4,0,8"/>
-
             <CheckBox x:Name="StartupCheck" Content="Run at startup"
-                      Foreground="White" FontSize="11" Margin="0,0,0,12"/>
+                      Foreground="White" FontSize="11" Margin="0,0,0,8"/>
+
+            <StackPanel x:Name="ChartWindowsPanel"/>
 
             <Grid>
                 <TextBlock x:Name="VersionText" Foreground="#555555" FontSize="9"
