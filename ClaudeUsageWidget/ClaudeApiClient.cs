@@ -177,8 +177,9 @@ internal sealed class ClaudeApiClient : IDisposable
 
         var response = await Http.SendAsync(request);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            throw new UnauthorizedAccessException("401 Unauthorized — invalid or expired credentials");
+        if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized
+                                  or System.Net.HttpStatusCode.Forbidden)
+            throw new UnauthorizedAccessException($"{(int)response.StatusCode} {response.StatusCode} — invalid or expired credentials");
 
         response.EnsureSuccessStatusCode();
 
@@ -233,8 +234,9 @@ internal sealed class ClaudeApiClient : IDisposable
 
         var response = await Http.SendAsync(request);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            throw new UnauthorizedAccessException("401 Unauthorized — invalid or expired credentials");
+        if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized
+                                  or System.Net.HttpStatusCode.Forbidden)
+            throw new UnauthorizedAccessException($"{(int)response.StatusCode} {response.StatusCode} — invalid or expired credentials");
 
         response.EnsureSuccessStatusCode();
 
