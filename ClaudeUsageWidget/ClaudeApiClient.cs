@@ -1,6 +1,3 @@
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace ClaudeUsageWidgetProvider;
@@ -53,20 +50,8 @@ internal sealed class ClaudeApiClient : IDisposable
     public string CredentialPath => _credential?.SourcePath ?? "";
     public string? LastError { get; private set; }
 
-    private static readonly TimeSpan MinFetchInterval = TimeSpan.FromSeconds(60);
-
-    private static readonly string[] ProbeModels =
-    [
-        "claude-sonnet-4-20250514",
-        "claude-haiku-4-5-20251001"
-    ];
-
-    private static string BuildMinimalRequest(string model) => JsonSerializer.Serialize(new
-    {
-        model,
-        max_tokens = 1,
-        messages = new[] { new { role = "user", content = "." } }
-    });
+    private static readonly TimeSpan DefaultFetchInterval = TimeSpan.FromSeconds(60);
+    private TimeSpan _fetchInterval = DefaultFetchInterval;
 
     public async Task<UsageData?> GetUsageAsync(bool forceRefresh = false)
     {
@@ -81,7 +66,7 @@ internal sealed class ClaudeApiClient : IDisposable
         }
 
         if (!forceRefresh && _cachedUsage != null &&
-            DateTimeOffset.UtcNow - _lastFetchTime < MinFetchInterval)
+            DateTimeOffset.UtcNow - _lastFetchTime < _fetchInterval)
         {
             return _cachedUsage;
         }
@@ -104,6 +89,10 @@ internal sealed class ClaudeApiClient : IDisposable
                 _cachedUsage = usage;
                 _lastFetchTime = DateTimeOffset.UtcNow;
             }
+            else if (_cachedUsage == null)
+            {
+                LastError ??= "No usage data available";
+            }
             return _cachedUsage;
         }
         catch (UnauthorizedAccessException)
@@ -113,7 +102,7 @@ internal sealed class ClaudeApiClient : IDisposable
             {
                 try
                 {
-                    var usage = await FetchUsageFromRateLimitHeadersAsync();
+                    var usage = await FetchUsageAsync();
                     if (usage != null)
                     {
                         LastError = null;
@@ -125,18 +114,16 @@ internal sealed class ClaudeApiClient : IDisposable
                 catch { }
             }
 
-            // Refresh selhal — přečti credentials z disku (platí i pro _noReload instance)
+            // Refresh failed — re-read credentials from disk
             var sourcePath = _credential?.SourcePath;
             if (!string.IsNullOrEmpty(sourcePath))
             {
                 var freshCred = CredentialStore.LoadCredentialFromPath(sourcePath);
                 if (freshCred != null && freshCred.AccessToken != _credential!.AccessToken)
                 {
-                    // Nový token — použij ho a zkus znova
                     _credentials[_credentialIndex] = freshCred;
                     return await GetUsageAsync(forceRefresh: true);
                 }
-                // Stejný token → error stav (nezasekáváme se)
             }
 
             LastError = "Invalid credentials — re-login with Claude CLI";
@@ -159,101 +146,76 @@ internal sealed class ClaudeApiClient : IDisposable
         {
             try
             {
-                return await FetchUsageFromRateLimitHeadersAsync();
+                return await FetchUsageAsync();
             }
             catch (Exception ex) when (IsTransient(ex) && attempt < maxRetries - 1)
             {
                 await Task.Delay(TimeSpan.FromSeconds(5 * (attempt + 1)));
             }
         }
-        return await FetchUsageFromRateLimitHeadersAsync(); // last attempt — let it throw
+        return await FetchUsageAsync(); // last attempt — let it throw
     }
 
-    private async Task<UsageData?> FetchUsageFromRateLimitHeadersAsync()
+    private async Task<UsageData?> FetchUsageAsync()
     {
         if (_service == ServiceType.Codex)
             return await FetchCodexUsageAsync();
 
-        // Call multiple models in parallel to discover all model-specific rate limits
-        var tasks = ProbeModels.Select(model => ProbeModelAsync(model)).ToList();
-        var responses = await Task.WhenAll(tasks);
-
-        var limits = new Dictionary<string, RateLimitEntry>();
-        foreach (var response in responses)
-        {
-            if (response == null) continue;
-            using (response)
-                ExtractRateLimits(response, limits);
-        }
-
-        if (limits.Count == 0) return null;
-
-        var result = new UsageData { Limits = limits.Values.ToList() };
-
-        // Mock spend data — TODO: replace with real API data once extra usage headers are discovered
-        var spendLimit = SettingsStore.Instance.SpendLimit;
-        if (spendLimit > 0)
-        {
-            const double mockSpendUsed = 22.2;
-            result.SpendUsed = mockSpendUsed;
-            result.SpendLimit = spendLimit;
-            result.Limits.Add(new RateLimitEntry
-            {
-                Label = "spend",
-                Utilization = mockSpendUsed / spendLimit * 100,
-                ResetsAt = DateTimeOffset.UtcNow.AddDays(30) // mock: monthly reset
-            });
-        }
-
-        return result;
+        return await FetchFromRateLimitHeadersAsync();
     }
 
-    private async Task<HttpResponseMessage?> ProbeModelAsync(string model)
+    private async Task<UsageData?> FetchFromRateLimitHeadersAsync()
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
-        request.Headers.Add("x-api-key", _credential!.AccessToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            "https://api.anthropic.com/v1/messages");
+        request.Headers.Add("Authorization", $"Bearer {_credential!.AccessToken}");
+        request.Headers.Add("anthropic-beta", "oauth-2025-04-20");
         request.Headers.Add("anthropic-version", "2023-06-01");
-        request.Content = new StringContent(BuildMinimalRequest(model), Encoding.UTF8, "application/json");
+        request.Content = new StringContent(
+            """{"model":"claude-haiku-4-5-20251001","max_tokens":1,"messages":[{"role":"user","content":"."}]}""",
+            System.Text.Encoding.UTF8, "application/json");
 
         var response = await Http.SendAsync(request);
 
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             throw new UnauthorizedAccessException("401 Unauthorized — invalid or expired credentials");
 
-        // Both 200 and 429 carry rate limit headers
-        if (response.IsSuccessStatusCode ||
-            response.StatusCode == (System.Net.HttpStatusCode)429)
-            return response;
+        response.EnsureSuccessStatusCode();
 
-        response.Dispose();
-        return null;
-    }
+        var limits = new List<RateLimitEntry>();
 
-    private static void ExtractRateLimits(HttpResponseMessage response, Dictionary<string, RateLimitEntry> limits)
-    {
-        const string prefix = "anthropic-ratelimit-";
-        const string utilSuffix = "-utilization";
-
-        foreach (var header in response.Headers)
+        // Parse unified rate limit headers
+        string[] windows = ["5h", "7d"];
+        foreach (var window in windows)
         {
-            var name = header.Key.ToLowerInvariant();
-            if (!name.StartsWith(prefix) || !name.EndsWith(utilSuffix)) continue;
+            var utilHeader = $"anthropic-ratelimit-unified-{window}-utilization";
+            var resetHeader = $"anthropic-ratelimit-unified-{window}-reset";
 
-            var label = name[prefix.Length..^utilSuffix.Length]; // e.g. "unified-5h", "unified-7d_sonnet"
-            if (limits.ContainsKey(label)) continue;
-
-            var utilStr = header.Value.FirstOrDefault();
-            if (!double.TryParse(utilStr, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var util)) continue;
-
-            var resetStr = GetHeader(response, $"{prefix}{label}-reset");
-            limits[label] = new RateLimitEntry
+            if (response.Headers.TryGetValues(utilHeader, out var utilValues))
             {
-                Label = label,
-                Utilization = util * 100,
-                ResetsAt = ParseUnixTimestamp(resetStr)
-            };
+                var utilStr = utilValues.FirstOrDefault();
+                if (double.TryParse(utilStr, System.Globalization.CultureInfo.InvariantCulture, out var util))
+                {
+                    var resetsAt = DateTimeOffset.UtcNow;
+                    if (response.Headers.TryGetValues(resetHeader, out var resetValues))
+                    {
+                        var resetStr = resetValues.FirstOrDefault();
+                        if (long.TryParse(resetStr, out var resetUnix))
+                            resetsAt = DateTimeOffset.FromUnixTimeSeconds(resetUnix);
+                    }
+
+                    limits.Add(new RateLimitEntry
+                    {
+                        Label = $"unified-{window}",
+                        Utilization = util * 100.0,
+                        ResetsAt = resetsAt
+                    });
+                }
+            }
         }
+
+        if (limits.Count == 0) return null;
+        return new UsageData { Limits = limits };
     }
 
     private async Task<UsageData?> FetchCodexUsageAsync()
@@ -352,21 +314,6 @@ internal sealed class ClaudeApiClient : IDisposable
         {
             return false;
         }
-    }
-
-    private static string? GetHeader(HttpResponseMessage response, string name)
-    {
-        return response.Headers.TryGetValues(name, out var values)
-            ? values.FirstOrDefault()
-            : null;
-    }
-
-    private static DateTimeOffset ParseUnixTimestamp(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return DateTimeOffset.UtcNow;
-        return long.TryParse(value, out var ts)
-            ? DateTimeOffset.FromUnixTimeSeconds(ts)
-            : DateTimeOffset.UtcNow;
     }
 
     public void Dispose() { }
