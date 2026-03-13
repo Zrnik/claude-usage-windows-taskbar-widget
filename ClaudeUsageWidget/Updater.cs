@@ -56,25 +56,48 @@ internal static class Updater
             var arch = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64";
             var assetName = $"ClaudeUsageWidget-win-{arch}.exe";
 
-            var assets = node["assets"]?.AsArray();
-            if (assets == null) return null;
+            if (!IsNewer(latestVersion, CurrentVersion))
+                return null;
 
-            foreach (var asset in assets)
+            var assets = node["assets"]?.AsArray();
+            string? downloadUrl = null;
+            if (assets != null)
             {
-                if (asset?["name"]?.GetValue<string>() == assetName)
+                foreach (var asset in assets)
                 {
-                    var url = asset["browser_download_url"]?.GetValue<string>();
-                    if (url != null)
-                        return new UpdateInfo { Version = latestVersion, DownloadUrl = url };
+                    if (asset?["name"]?.GetValue<string>() == assetName)
+                    {
+                        downloadUrl = asset["browser_download_url"]?.GetValue<string>();
+                        break;
+                    }
                 }
             }
+
+            return new UpdateInfo { Version = latestVersion, DownloadUrl = downloadUrl ?? "" };
         }
         catch { }
         return null;
     }
 
+    private static bool IsNewer(string latest, string current)
+    {
+        if (Version.TryParse(latest, out var l) && Version.TryParse(current, out var c))
+            return l > c;
+        return !string.Equals(latest, current, StringComparison.Ordinal);
+    }
+
     public static void LaunchUpdaterTerminal(UpdateInfo update)
     {
+        if (string.IsNullOrEmpty(update.DownloadUrl))
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"https://github.com/{Repo}/releases/latest",
+                UseShellExecute = true
+            });
+            return;
+        }
+
         var scriptPath = Path.Combine(Path.GetTempPath(), "ClaudeUsageWidget_update.ps1");
         var currentExe = Environment.ProcessPath!;
         var currentPid = Environment.ProcessId;
