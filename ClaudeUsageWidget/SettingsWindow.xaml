@@ -25,6 +25,9 @@
             <CheckBox x:Name="StartupCheck" Content="Run at startup"
                       Foreground="White" FontSize="11" Margin="0,0,0,8"/>
 
+            <CheckBox x:Name="DesktopShortcutCheck" Content="Desktop shortcut"
+                      Foreground="White" FontSize="11" Margin="0,0,0,8"/>
+
             <StackPanel x:Name="ChartWindowsPanel"/>
 
             <Grid>

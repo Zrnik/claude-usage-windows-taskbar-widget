@@ -622,6 +622,13 @@ public partial class MainWindow : Window
                 Topmost = false;
             }
         });
+#if !DEBUG
+        menu.AddCheckItem("Desktop shortcut", DesktopShortcutExists(), true, on =>
+        {
+            if (on) CreateDesktopShortcut();
+            else RemoveDesktopShortcut();
+        });
+#endif
         menu.AddSeparator();
         if (_latestRelease != null)
         {
@@ -637,6 +644,31 @@ public partial class MainWindow : Window
         menu.AddItem("Quit", () => Application.Current.Shutdown());
 
         menu.ShowAbove(Left, Top);
+    }
+
+    internal static string DesktopShortcutPath() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Claude Usage Widget.lnk");
+
+    internal static bool DesktopShortcutExists() => File.Exists(DesktopShortcutPath());
+
+    internal static void CreateDesktopShortcut()
+    {
+        var exePath = Environment.ProcessPath;
+        if (exePath == null) return;
+        var script = $"$ws = New-Object -ComObject WScript.Shell; $sc = $ws.CreateShortcut('{DesktopShortcutPath().Replace("'", "''")}'); $sc.TargetPath = '{exePath.Replace("'", "''")}'; $sc.Save()";
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "powershell",
+            Arguments = $"-NoProfile -WindowStyle Hidden -Command \"{script}\"",
+            CreateNoWindow = true,
+            UseShellExecute = false
+        });
+    }
+
+    internal static void RemoveDesktopShortcut()
+    {
+        var path = DesktopShortcutPath();
+        if (File.Exists(path)) File.Delete(path);
     }
 
     private void OpenSettings()

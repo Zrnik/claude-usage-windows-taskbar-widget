@@ -11,14 +11,16 @@
     <Company>Štěpán Zrník</Company>
     <Product>Claude Usage Widget</Product>
     <Copyright>Copyright © 2026 Štěpán Zrník</Copyright>
-    <AssemblyVersion>0.2.9.0</AssemblyVersion>
-    <FileVersion>0.2.9.0</FileVersion>
-    <Version>0.2.9</Version>
+    <AssemblyVersion>0.2.10.0</AssemblyVersion>
+    <FileVersion>0.2.10.0</FileVersion>
+    <Version>0.2.10</Version>
+    <ApplicationIcon>Assets\claude.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="Assets\claude-logo.png" />
     <Resource Include="Assets\codex-logo.png" />
+    <Content Include="Assets\claude.ico" />
   </ItemGroup>
 
 </Project>

@@ -34,14 +34,17 @@ public partial class ContextMenuWindow : Window
 
     public void AddCheckItem(string header, bool isChecked, bool isEnabled, Action<bool> onToggle)
     {
-        var row = new Grid { Margin = new Thickness(4, 2, 4, 2) };
+        var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+        var ghostBrush = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44));
+        var disabledBrush = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66));
+
         var check = new TextBlock
         {
-            Text = isChecked ? "✓" : "",
-            Foreground = isEnabled ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+            Text = "✓",
+            Foreground = !isEnabled ? disabledBrush : isChecked ? Brushes.White : ghostBrush,
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -49,7 +52,7 @@ public partial class ContextMenuWindow : Window
         var label = new TextBlock
         {
             Text = header,
-            Foreground = isEnabled ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+            Foreground = isEnabled ? Brushes.White : disabledBrush,
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(4, 0, 8, 0)
@@ -64,14 +67,15 @@ public partial class ContextMenuWindow : Window
 
         if (isEnabled)
         {
+            bool currentChecked = isChecked;
             border.Cursor = Cursors.Hand;
             border.MouseEnter += (_, _) => border.Background = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
             border.MouseLeave += (_, _) => border.Background = Brushes.Transparent;
             border.MouseLeftButtonUp += (_, _) =>
             {
-                var newChecked = check.Text == "";
-                check.Text = newChecked ? "✓" : "";
-                onToggle(newChecked);
+                currentChecked = !currentChecked;
+                check.Foreground = currentChecked ? Brushes.White : ghostBrush;
+                onToggle(currentChecked);
                 CloseMenu();
             };
         }

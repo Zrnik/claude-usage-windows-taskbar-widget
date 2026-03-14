@@ -23,9 +23,11 @@ public partial class SettingsWindow : Window
         NotificationsCheck.IsChecked = settings.NotificationsEnabled;
         NotifyResetCheck.IsChecked = settings.NotifyOnReset;
         StartupCheck.IsChecked = IsStartupEnabled();
+        DesktopShortcutCheck.IsChecked = MainWindow.DesktopShortcutExists();
 
 #if DEBUG
         StartupCheck.IsEnabled = false;
+        DesktopShortcutCheck.IsEnabled = false;
 #endif
 
         BuildChartWindowsUI(settings);
@@ -36,6 +38,8 @@ public partial class SettingsWindow : Window
         NotifyResetCheck.Unchecked += (_, _) => SaveSettings();
         StartupCheck.Checked += (_, _) => SetStartup(true);
         StartupCheck.Unchecked += (_, _) => SetStartup(false);
+        DesktopShortcutCheck.Checked += (_, _) => MainWindow.CreateDesktopShortcut();
+        DesktopShortcutCheck.Unchecked += (_, _) => MainWindow.RemoveDesktopShortcut();
 
         CloseButton.Click += (_, _) => SafeClose();
     }

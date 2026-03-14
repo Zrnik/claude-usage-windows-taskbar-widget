@@ -57,6 +57,13 @@ internal class App : Application
         base.OnStartup(e);
 
         try { SetCurrentProcessExplicitAppUserModelId("ClaudeUsageWidget"); } catch { }
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+                @"Software\Classes\AppUserModelId\ClaudeUsageWidget");
+            key.SetValue("DisplayName", "Claude Usage Widget");
+        }
+        catch { }
 
         _mutex = new Mutex(initiallyOwned: true, "Local\\ClaudeUsageWidget", out bool createdNew);
         if (!createdNew)
