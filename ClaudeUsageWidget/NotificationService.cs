@@ -15,6 +15,9 @@ internal sealed class NotificationService
     // key = "{accountKey}:{limitLabel}" → last known ResetsAt value
     private readonly Dictionary<string, DateTimeOffset> _lastResetAt = new();
 
+    // key = "{accountKey}:{limitLabel}" → last known utilization value
+    private readonly Dictionary<string, double> _lastUtilization = new();
+
     private NotificationService() { }
 
     public void CheckAndNotify(string? accountKey, UsageData usage)
@@ -30,13 +33,15 @@ internal sealed class NotificationService
             _notified[key] = notifiedSet;
 
             // Detect reset: ResetsAt changed → clear notified + optionally toast
+            _lastUtilization.TryGetValue(key, out var prevUtil);
             if (_lastResetAt.TryGetValue(key, out var prevReset) && limit.ResetsAt != prevReset)
             {
                 notifiedSet.Clear();
-                if (settings.NotificationsEnabled && settings.NotifyOnReset && limit.Utilization < 10)
+                if (settings.NotificationsEnabled && settings.NotifyOnReset && limit.Utilization < 10 && prevUtil > 0)
                     ShowToast($"Limit reset: {FormatLabel(limit.Label)}", "Usage has been reset.");
             }
             _lastResetAt[key] = limit.ResetsAt;
+            _lastUtilization[key] = limit.Utilization;
 
             // Remove thresholds if utilization dropped below them
             foreach (var threshold in Thresholds)
