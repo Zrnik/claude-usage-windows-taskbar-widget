@@ -17,8 +17,6 @@ internal sealed class UsageHistoryStore
     private static readonly JsonSerializerOptions SerializerOptions =
         new() { WriteIndented = false };
 
-    private const int MaxRecords = 2016; // 14 dní × 144 bucketů/den (10min interval)
-
     private UsageHistoryStore() { }
 
     public void Append(string? accountKey, UsageData usage)
@@ -43,9 +41,6 @@ internal sealed class UsageHistoryStore
                 records[idx] = record;
             else
                 records.Add(record);
-
-            if (records.Count > MaxRecords)
-                records.RemoveRange(0, records.Count - MaxRecords);
 
             var json = JsonSerializer.Serialize(records, SerializerOptions);
             AtomicWrite(GetHistoryPath(accountKey), json);
@@ -119,5 +114,43 @@ internal sealed class UsageHistoryStore
         // Sanitizace: "claude:ORG_ID" → "claude_ORG_ID"
         var filename = accountKey.Replace(':', '_') + ".json";
         return Path.Combine(dir, filename);
+    }
+
+    private static string GetHistoryDir() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "ClaudeUsageWidget", "history");
+
+    // When the account key changes (e.g. token format changed from JWT to opaque),
+    // copy data from the single orphaned history file to the new key's file.
+    // The original file is intentionally kept — data is never deleted.
+    public void MigrateOrphanedHistory(string targetKey, IReadOnlyList<string> allActiveKeys)
+    {
+        try
+        {
+            var targetPath = GetHistoryPath(targetKey);
+            if (File.Exists(targetPath)) return;
+
+            var dir = GetHistoryDir();
+            if (!Directory.Exists(dir)) return;
+
+            var activeFiles = allActiveKeys
+                .Select(k => Path.GetFullPath(GetHistoryPath(k)))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var orphans = Directory.GetFiles(dir, "*.json")
+                .Where(f => !f.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+                .Where(f => !activeFiles.Contains(Path.GetFullPath(f)))
+                .ToList();
+
+            if (orphans.Count != 1) return;
+
+            var orphanData = TryReadFromDisk(orphans[0]);
+            if (orphanData == null || orphanData.Count == 0) return;
+
+            var json = JsonSerializer.Serialize(orphanData, SerializerOptions);
+            AtomicWrite(targetPath, json);
+            _cache[targetKey] = orphanData;
+        }
+        catch { }
     }
 }

@@ -75,8 +75,28 @@ internal sealed class ClaudeApiClient : IDisposable
         {
             if (!await RefreshTokenAsync())
             {
-                LastError = "Token expired and refresh failed";
-                return _cachedUsage;
+                // Refresh failed — maybe Claude CLI externally refreshed the token on disk
+                var sourcePath = _credential?.SourcePath;
+                if (!string.IsNullOrEmpty(sourcePath))
+                {
+                    var freshCred = CredentialStore.LoadCredentialFromPath(sourcePath);
+                    if (freshCred != null && !freshCred.IsExpired &&
+                        freshCred.AccessToken != _credential!.AccessToken)
+                    {
+                        _credentials[_credentialIndex] = freshCred;
+                        // Fall through to attempt fetch with fresh token
+                    }
+                    else
+                    {
+                        LastError = "Token expired and refresh failed";
+                        return _cachedUsage;
+                    }
+                }
+                else
+                {
+                    LastError = "Token expired and refresh failed";
+                    return _cachedUsage;
+                }
             }
         }
 

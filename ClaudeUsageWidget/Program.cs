@@ -92,6 +92,12 @@ internal class App : Application
 
         var clients = accounts.Select(a => new ClaudeApiClient(a)).ToList();
 
+        // Migrate orphaned history files (e.g. after token format change from JWT to opaque)
+        var activeKeys = clients.Select(c => c.AccountKey).OfType<string>().ToList();
+        foreach (var client in clients)
+            if (client.AccountKey != null)
+                UsageHistoryStore.Instance.MigrateOrphanedHistory(client.AccountKey, activeKeys);
+
         Exit += (_, _) =>
         {
             foreach (var c in clients) c.Dispose();
