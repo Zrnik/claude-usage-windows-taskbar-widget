@@ -92,6 +92,9 @@ internal class App : Application
 
         var clients = accounts.Select(a => new ClaudeApiClient(a)).ToList();
 
+        // Migrate history from %AppData% to %ProgramData% (persists across reinstalls)
+        UsageHistoryStore.Instance.MigrateFromAppData();
+
         // Migrate orphaned history files (e.g. after token format change from JWT to opaque)
         var activeKeys = clients.Select(c => c.AccountKey).OfType<string>().ToList();
         foreach (var client in clients)

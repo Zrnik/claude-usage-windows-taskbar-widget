@@ -108,17 +108,51 @@ internal sealed class UsageHistoryStore
 
     private static string GetHistoryPath(string accountKey)
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "ClaudeUsageWidget", "history");
         // Sanitizace: "claude:ORG_ID" → "claude_ORG_ID"
         var filename = accountKey.Replace(':', '_') + ".json";
-        return Path.Combine(dir, filename);
+        return Path.Combine(GetHistoryDir(), filename);
     }
 
     private static string GetHistoryDir() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "ClaudeUsageWidget", "history");
+
+    private static string GetLegacyHistoryDir() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "ClaudeUsageWidget", "history");
+
+    public void MigrateFromAppData()
+    {
+        try
+        {
+            var oldDir = GetLegacyHistoryDir();
+            if (!Directory.Exists(oldDir)) return;
+
+            foreach (var oldPath in Directory.GetFiles(oldDir, "*.json"))
+            {
+                if (oldPath.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)) continue;
+                var filename = Path.GetFileName(oldPath);
+                var newPath = Path.Combine(GetHistoryDir(), filename);
+
+                var oldRecords = TryReadFromDisk(oldPath) ?? new List<HistoryRecord>();
+                var newRecords = TryReadFromDisk(newPath) ?? new List<HistoryRecord>();
+
+                var merged = oldRecords
+                    .Concat(newRecords)
+                    .GroupBy(r => r.Timestamp)
+                    .Select(g => g.Last())
+                    .OrderBy(r => r.Timestamp)
+                    .ToList();
+
+                var json = JsonSerializer.Serialize(merged, SerializerOptions);
+                AtomicWrite(newPath, json);
+
+                var accountKey = Path.GetFileNameWithoutExtension(filename);
+                _cache[accountKey] = merged;
+            }
+        }
+        catch { }
+    }
 
     // When the account key changes (e.g. token format changed from JWT to opaque),
     // copy data from the single orphaned history file to the new key's file.
