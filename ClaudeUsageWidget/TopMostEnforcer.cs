@@ -23,9 +23,6 @@ internal sealed class TopMostEnforcer : IDisposable
     private static extern uint GetCurrentThreadId();
 
     [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-    [DllImport("user32.dll")]
     private static extern bool PostThreadMessage(uint idThread, uint msg, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll")]
@@ -55,28 +52,23 @@ internal sealed class TopMostEnforcer : IDisposable
     private const uint WM_QUIT = 0x0012;
     private const uint WM_USER = 0x0400;
     private const uint EventSystemForeground = 0x0003;
-    private const uint EventObjectReorder = 0x8004;
     private const uint WinEventOutOfContext = 0x0000;
     private const uint SwpNoMove = 0x0002;
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoActivate = 0x0010;
 
     private readonly IntPtr _hwnd;
-    private readonly uint _processId;
     private volatile uint _threadId;
     private volatile bool _paused;
     private bool _disposed;
 
-    // Must be fields — local variables get GC'd in Release builds before the message loop ends
+    // Must be a field — local variable gets GC'd in Release builds before the message loop ends
     private readonly WinEventDelegate _fgDelegate;
-    private readonly WinEventDelegate _reorderDelegate;
 
     internal TopMostEnforcer(IntPtr hwnd)
     {
         _hwnd = hwnd;
-        _processId = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
         _fgDelegate = OnForegroundChanged;
-        _reorderDelegate = OnZOrderChanged;
         var thread = new Thread(Run) { IsBackground = true };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
@@ -88,8 +80,6 @@ internal sealed class TopMostEnforcer : IDisposable
 
         var fgHook = SetWinEventHook(EventSystemForeground, EventSystemForeground,
             IntPtr.Zero, _fgDelegate, 0, 0, WinEventOutOfContext);
-        var reorderHook = SetWinEventHook(EventObjectReorder, EventObjectReorder,
-            IntPtr.Zero, _reorderDelegate, 0, 0, WinEventOutOfContext);
 
         int ret;
         while ((ret = GetMessage(out var msg, IntPtr.Zero, 0, 0)) != 0)
@@ -105,7 +95,6 @@ internal sealed class TopMostEnforcer : IDisposable
         }
 
         if (fgHook != IntPtr.Zero) UnhookWinEvent(fgHook);
-        if (reorderHook != IntPtr.Zero) UnhookWinEvent(reorderHook);
     }
 
     internal void Pause()  => _paused = true;
@@ -117,16 +106,6 @@ internal sealed class TopMostEnforcer : IDisposable
         int idObject, int idChild, uint idEventThread, uint dwmsEventTime)
     {
         if (_paused) return;
-        RequestTopmost();
-    }
-
-    private void OnZOrderChanged(IntPtr hook, uint eventType, IntPtr hwnd,
-        int idObject, int idChild, uint idEventThread, uint dwmsEventTime)
-    {
-        if (_paused) return;
-        if (hwnd == _hwnd) return;
-        GetWindowThreadProcessId(hwnd, out uint pid);
-        if (pid == _processId) return;
         RequestTopmost();
     }
 

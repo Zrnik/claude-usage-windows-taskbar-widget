@@ -106,6 +106,7 @@ public partial class MainWindow : Window
     private readonly UsageHistoryStore _historyStore = UsageHistoryStore.Instance;
     private readonly IntPtr _taskbarHwnd;
     private readonly bool _isPrimary;
+    private readonly Dictionary<uint, bool> _isExplorerPidCache = new();
     private PopupWindow? _popup;
     private TopMostEnforcer? _topMostEnforcer;
     private UpdateInfo? _latestRelease;
@@ -492,13 +493,14 @@ public partial class MainWindow : Window
 
         // Explorer.exe owns taskbar, thumbnail strips and Aero Peek overlays — never treat as fullscreen
         GetWindowThreadProcessId(foreground, out uint pid);
-        try
+        if (!_isExplorerPidCache.TryGetValue(pid, out bool isExplorer))
         {
-            if (System.Diagnostics.Process.GetProcessById((int)pid).ProcessName
-                    .Equals("explorer", StringComparison.OrdinalIgnoreCase))
-                return false;
+            try { isExplorer = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName
+                      .Equals("explorer", StringComparison.OrdinalIgnoreCase); }
+            catch { isExplorer = false; }
+            _isExplorerPidCache[pid] = isExplorer;
         }
-        catch { /* process may have exited */ }
+        if (isExplorer) return false;
 
         var myMonitor = MonitorFromWindow(_taskbarHwnd, MONITOR_DEFAULTTONEAREST);
         var mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
