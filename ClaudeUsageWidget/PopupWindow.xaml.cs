@@ -549,23 +549,27 @@ public partial class PopupWindow : Window
             StrokeDashArray = new DoubleCollection { 3, 3 }
         });
 
-        // Actual cumulative from history
-        var history = TogglHistoryStore.Instance.GetCurrentMonth();
-        var points = new PointCollection();
-        points.Add(new Point(MapX(0), MapY(0)));
-        foreach (var rec in history)
+        // Actual cumulative curve — built from Toggl time entries (per-day aggregated), so it works
+        // independently of widget uptime / history snapshots.
+        var points = new PointCollection { new Point(MapX(0), MapY(0)) };
+        double cumulative = 0;
+        var sorted = current.DailyBreakdown.OrderBy(d => d.Date).ToList();
+        foreach (var day in sorted)
         {
-            if (!DateTimeOffset.TryParse(rec.Date, CultureInfo.InvariantCulture,
-                    DateTimeStyles.AssumeLocal, out var d)) continue;
-            double dayOffset = (d - monthStart).TotalDays + 1; // end-of-day
-            if (dayOffset < 0 || dayOffset > totalDays) continue;
-            points.Add(new Point(MapX(dayOffset), MapY(rec.EarnedCzk)));
+            double dayOffset = (day.Date - monthStart).TotalDays;
+            if (dayOffset < 0) continue;
+            if (dayOffset > totalDays) dayOffset = totalDays;
+            // Start-of-day baseline (holds previous total)
+            points.Add(new Point(MapX(dayOffset), MapY(cumulative)));
+            cumulative += day.EarnedCzk;
+            // End-of-day value (after adding today's earnings)
+            points.Add(new Point(MapX(dayOffset + 1), MapY(cumulative)));
         }
 
-        // Ensure latest point reflects current live value at 'now'
+        // Ensure latest point reflects current live value at 'now' (handles intra-day updates)
         var now = DateTimeOffset.Now;
         double nowOffset = (now - monthStart).TotalDays;
-        if (nowOffset >= 0 && nowOffset <= totalDays)
+        if (nowOffset >= 0 && nowOffset <= totalDays && current.EarnedCzk > 0)
         {
             var nowPoint = new Point(MapX(nowOffset), MapY(current.EarnedCzk));
             if (points.Count == 0 || points[^1].X < nowPoint.X)

@@ -22,6 +22,13 @@ public sealed class ProjectEarnings
     public double Earned { get; set; }
 }
 
+public sealed class DayEarnings
+{
+    public DateTimeOffset Date { get; set; }
+    public double Hours { get; set; }
+    public double EarnedCzk { get; set; }
+}
+
 public sealed class TogglUsageData
 {
     public double HoursWorked { get; set; }
@@ -30,6 +37,7 @@ public sealed class TogglUsageData
     public DateTimeOffset MonthStart { get; set; }
     public DateTimeOffset MonthResetsAt { get; set; }
     public List<ProjectEarnings> Breakdown { get; set; } = [];
+    public List<DayEarnings> DailyBreakdown { get; set; } = [];
 }
 
 internal sealed class TogglApiClient : IDisposable
@@ -129,6 +137,7 @@ internal sealed class TogglApiClient : IDisposable
         var projectNames = await LoadProjectNamesAsync(settings.TogglApiKey);
 
         var perProject = new Dictionary<long, (double Hours, string Name, string? Client)>();
+        var perDay = new Dictionary<DateTime, (double Hours, double Earned)>();
         double totalHours = 0;
 
         foreach (var entry in arr)
@@ -146,6 +155,18 @@ internal sealed class TogglApiClient : IDisposable
                 agg = (0.0, meta.Name ?? (projectId == 0 ? "(no project)" : $"#{projectId}"), meta.ClientName);
             }
             perProject[projectId] = (agg.Hours + hours, agg.Name, agg.Client);
+
+            // Per-day aggregation — bucket by entry start date in local time
+            var startStr = entry["start"]?.GetValue<string>();
+            if (startStr != null && DateTimeOffset.TryParse(startStr, null,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var startTs))
+            {
+                var dayKey = startTs.ToLocalTime().Date;
+                settings.TogglProjectRates.TryGetValue(projectId, out var rate);
+                var earned = hours * rate;
+                if (!perDay.TryGetValue(dayKey, out var day)) day = (0, 0);
+                perDay[dayKey] = (day.Hours + hours, day.Earned + earned);
+            }
         }
 
         double totalEarned = 0;
@@ -167,6 +188,16 @@ internal sealed class TogglApiClient : IDisposable
         }
         breakdown.Sort((a, b) => b.Earned.CompareTo(a.Earned));
 
+        var daily = perDay
+            .OrderBy(kv => kv.Key)
+            .Select(kv => new DayEarnings
+            {
+                Date = new DateTimeOffset(kv.Key, now.Offset),
+                Hours = kv.Value.Hours,
+                EarnedCzk = kv.Value.Earned
+            })
+            .ToList();
+
         return new TogglUsageData
         {
             HoursWorked = totalHours,
@@ -174,7 +205,8 @@ internal sealed class TogglApiClient : IDisposable
             TargetCzk = settings.TogglMonthlyTargetCzk,
             MonthStart = monthStart,
             MonthResetsAt = nextMonth,
-            Breakdown = breakdown
+            Breakdown = breakdown,
+            DailyBreakdown = daily
         };
     }
 
