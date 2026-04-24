@@ -16,10 +16,13 @@ public partial class AccountPanel : UserControl
     internal AccountPanel(ServiceType service)
     {
         InitializeComponent();
-        ServiceIcon.Source = new BitmapImage(new Uri(
-            service == ServiceType.Claude
-                ? "pack://application:,,,/Assets/claude-logo.png"
-                : "pack://application:,,,/Assets/codex-logo.png"));
+        ServiceIcon.Source = new BitmapImage(new Uri(service switch
+        {
+            ServiceType.Claude => "pack://application:,,,/Assets/claude-logo.png",
+            ServiceType.Codex => "pack://application:,,,/Assets/codex-logo.png",
+            ServiceType.Toggl => "pack://application:,,,/Assets/toggl-logo.png",
+            _ => "pack://application:,,,/Assets/claude-logo.png"
+        }));
     }
 
     public void UpdateBars(UsageData data)
@@ -43,6 +46,158 @@ public partial class AccountPanel : UserControl
             container.Tag = null;
             container.ContextMenu = null;
         }
+    }
+
+    private TextBlock? _togglLine1;
+    private TextBlock? _togglLine2;
+    private ProgressBar? _togglBar;
+    private TextBlock? _togglBarOverlay;
+
+    public void UpdateTogglBars(TogglUsageData data)
+    {
+        _isLoading = false;
+        _bars.Clear();
+        BarsPanel.RowDefinitions.Clear();
+        BarsPanel.Children.Clear();
+
+        // Row layout: bar (compact) | text1 | text2
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Pixel) });
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+        // Build bar
+        var bar = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0 };
+        bar.Template = CreateBarTemplate();
+        double pct = data.TargetCzk > 0
+            ? Math.Min(100.0, data.EarnedCzk / data.TargetCzk * 100.0)
+            : 0.0;
+        bar.Value = pct;
+
+        var barOverlay = new TextBlock
+        {
+            Text = data.TargetCzk > 0
+                ? $"{pct:0}%  {FormatCzk(data.EarnedCzk)} / {FormatCzk(data.TargetCzk)}"
+                : $"{FormatCzk(data.EarnedCzk)}  (bez cíle)",
+            Foreground = Brushes.White,
+            FontSize = 9,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        var barContainer = new Grid();
+        barContainer.Children.Add(bar);
+        barContainer.Children.Add(barOverlay);
+        Grid.SetRow(barContainer, 0);
+        BarsPanel.Children.Add(barContainer);
+        _togglBar = bar;
+        _togglBarOverlay = barOverlay;
+        SetTogglBarColor(GetBarIndicator(bar), data.EarnedCzk, data.TargetCzk);
+
+        // Compute pace info (same formula as PopupWindow)
+        var now = DateTimeOffset.Now;
+        int wdTotal = CountWorkingDays(data.MonthStart, data.MonthResetsAt.AddDays(-1));
+        int wdElapsed = CountWorkingDays(data.MonthStart, now);
+        int wdRemaining = Math.Max(0, wdTotal - wdElapsed);
+        double remaining = Math.Max(0, data.TargetCzk - data.EarnedCzk);
+        double impliedRate = (wdTotal > 0 && data.TargetCzk > 0) ? data.TargetCzk / (wdTotal * 8.0) : 0;
+        double reqHoursPerDay = (impliedRate > 0 && wdRemaining > 0) ? remaining / (impliedRate * wdRemaining) : 0;
+
+        string line1;
+        Color line1Color;
+        if (data.TargetCzk <= 0)
+        {
+            line1 = "Bez nastaveného cíle";
+            line1Color = Color.FromRgb(0x88, 0x88, 0x88);
+        }
+        else if (remaining <= 0)
+        {
+            line1 = "✓ Cíl splněn";
+            line1Color = Color.FromRgb(0x21, 0x96, 0xF3);
+        }
+        else if (wdRemaining <= 0)
+        {
+            line1 = "Měsíc skončil";
+            line1Color = Color.FromRgb(0xF4, 0x43, 0x36);
+        }
+        else
+        {
+            line1 = $"Ideálně {reqHoursPerDay:0.#} h/den";
+            line1Color = reqHoursPerDay <= 8
+                ? Color.FromRgb(0x4C, 0xAF, 0x50)
+                : reqHoursPerDay <= 10
+                    ? Color.FromRgb(0xFF, 0x98, 0x00)
+                    : Color.FromRgb(0xF4, 0x43, 0x36);
+        }
+
+        var line1Block = new TextBlock
+        {
+            Text = line1,
+            Foreground = new SolidColorBrush(line1Color),
+            FontSize = 9,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetRow(line1Block, 2);
+        BarsPanel.Children.Add(line1Block);
+        _togglLine1 = line1Block;
+
+        string line2;
+        if (wdRemaining > 0 && remaining > 0 && data.TargetCzk > 0)
+        {
+            double perDay = remaining / wdRemaining;
+            line2 = $"Zbývá {wdRemaining}d · {FormatCzk(perDay)}/den";
+        }
+        else
+        {
+            line2 = $"{data.HoursWorked:0.#}h odpracováno";
+        }
+
+        var line2Block = new TextBlock
+        {
+            Text = line2,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
+            FontSize = 9,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetRow(line2Block, 3);
+        BarsPanel.Children.Add(line2Block);
+        _togglLine2 = line2Block;
+    }
+
+    private static int CountWorkingDays(DateTimeOffset from, DateTimeOffset to)
+    {
+        if (to < from) return 0;
+        int count = 0;
+        var d = from.Date;
+        var end = to.Date;
+        while (d <= end)
+        {
+            if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                count++;
+            d = d.AddDays(1);
+        }
+        return count;
+    }
+
+    private static string FormatCzk(double czk)
+    {
+        if (czk >= 1_000_000) return $"{czk / 1_000_000.0:0.#}M Kč";
+        if (czk >= 10_000) return $"{czk / 1000.0:0}k Kč";
+        if (czk >= 1000) return $"{czk / 1000.0:0.#}k Kč";
+        return $"{czk:0} Kč";
+    }
+
+    private static void SetTogglBarColor(Border? indicator, double earned, double target)
+    {
+        if (indicator == null) return;
+        // Toggl: green while building toward target, blue when target reached/exceeded
+        string color;
+        if (target <= 0) color = "#888888";
+        else if (earned >= target) color = "#2196F3"; // blue — goal reached
+        else color = "#4CAF50";                        // green — in progress
+        indicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
     }
 
     public void ShowLoadingState()

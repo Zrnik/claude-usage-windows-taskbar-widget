@@ -14,6 +14,16 @@
         <StackPanel Width="260">
             <TextBlock Text="Settings" Foreground="White" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"/>
 
+            <TextBlock Text="Show sections" Foreground="#888888" FontSize="10" Margin="0,0,0,4"/>
+            <CheckBox x:Name="ShowClaudeCheck" Content="Claude"
+                      Foreground="White" FontSize="11" Margin="0,0,0,4"/>
+            <CheckBox x:Name="ShowCodexCheck" Content="Codex"
+                      Foreground="White" FontSize="11" Margin="0,0,0,4"/>
+            <CheckBox x:Name="ShowTogglCheck" Content="Toggl Track"
+                      Foreground="White" FontSize="11" Margin="0,0,0,8"/>
+
+            <Border Height="1" Background="#333333" Margin="0,4,0,8"/>
+
             <CheckBox x:Name="NotificationsCheck" Content="Threshold notifications (75%, 90%)"
                       Foreground="White" FontSize="11" Margin="0,0,0,8"/>
 
@@ -29,6 +39,39 @@
                       Foreground="White" FontSize="11" Margin="0,0,0,8"/>
 
             <StackPanel x:Name="ChartWindowsPanel"/>
+
+            <Border Height="1" Background="#333333" Margin="0,8,0,8"/>
+            <TextBlock Text="Toggl Track" Foreground="White" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="API key" Foreground="#CCCCCC" FontSize="10"
+                           VerticalAlignment="Center" Margin="0,0,6,0" Grid.Column="0"/>
+                <PasswordBox x:Name="TogglApiKeyBox" Grid.Column="1"
+                             Background="#2A2A2A" Foreground="White"
+                             BorderBrush="#555555" FontSize="10" Padding="4,2"/>
+            </Grid>
+            <TextBlock x:Name="TogglStatusText" Foreground="#888888" FontSize="9" Margin="0,0,0,6"/>
+
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Monthly target (Kč)" Foreground="#CCCCCC" FontSize="10"
+                           VerticalAlignment="Center" Grid.Column="0"/>
+                <TextBox x:Name="TogglTargetBox" Grid.Column="1"
+                         Background="#2A2A2A" Foreground="White"
+                         BorderBrush="#555555" FontSize="10" Padding="4,2"
+                         HorizontalContentAlignment="Right"/>
+            </Grid>
+
+            <TextBlock x:Name="TogglProjectsLabel" Text="Project rates (Kč/h)" Foreground="White"
+                       FontSize="11" Margin="0,0,0,4" Visibility="Collapsed"/>
+            <StackPanel x:Name="TogglProjectsPanel"/>
 
             <Grid>
                 <TextBlock x:Name="VersionText" Foreground="#555555" FontSize="9"

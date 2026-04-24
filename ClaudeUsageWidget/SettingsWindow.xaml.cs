@@ -11,6 +11,7 @@ public partial class SettingsWindow : Window
     private const string RunRegistryValue = "ClaudeUsageWidget";
     private bool _closing;
     private readonly Dictionary<string, TextBox> _chartWindowBoxes = new();
+    private readonly Dictionary<long, TextBox> _togglRateBoxes = new();
 
     public SettingsWindow()
     {
@@ -20,6 +21,9 @@ public partial class SettingsWindow : Window
         VersionText.Text = $"v{Updater.CurrentVersion}";
 
         var settings = SettingsStore.Instance;
+        ShowClaudeCheck.IsChecked = settings.ShowClaude;
+        ShowCodexCheck.IsChecked = settings.ShowCodex;
+        ShowTogglCheck.IsChecked = settings.ShowToggl;
         NotificationsCheck.IsChecked = settings.NotificationsEnabled;
         NotifyResetCheck.IsChecked = settings.NotifyOnReset;
         StartupCheck.IsChecked = IsStartupEnabled();
@@ -31,7 +35,14 @@ public partial class SettingsWindow : Window
 #endif
 
         BuildChartWindowsUI(settings);
+        InitTogglUI(settings);
 
+        ShowClaudeCheck.Checked += (_, _) => SaveVisibility();
+        ShowClaudeCheck.Unchecked += (_, _) => SaveVisibility();
+        ShowCodexCheck.Checked += (_, _) => SaveVisibility();
+        ShowCodexCheck.Unchecked += (_, _) => SaveVisibility();
+        ShowTogglCheck.Checked += (_, _) => SaveVisibility();
+        ShowTogglCheck.Unchecked += (_, _) => SaveVisibility();
         NotificationsCheck.Checked += (_, _) => SaveSettings();
         NotificationsCheck.Unchecked += (_, _) => SaveSettings();
         NotifyResetCheck.Checked += (_, _) => SaveSettings();
@@ -42,6 +53,139 @@ public partial class SettingsWindow : Window
         DesktopShortcutCheck.Unchecked += (_, _) => MainWindow.RemoveDesktopShortcut();
 
         CloseButton.Click += (_, _) => SafeClose();
+    }
+
+    private void SaveVisibility()
+    {
+        var settings = SettingsStore.Instance;
+        settings.ShowClaude = ShowClaudeCheck.IsChecked == true;
+        settings.ShowCodex = ShowCodexCheck.IsChecked == true;
+        settings.ShowToggl = ShowTogglCheck.IsChecked == true;
+        settings.Save();
+        SettingsStore.RaiseVisibilityChanged();
+    }
+
+    private void InitTogglUI(SettingsStore settings)
+    {
+        TogglApiKeyBox.Password = settings.TogglApiKey;
+        TogglTargetBox.Text = settings.TogglMonthlyTargetCzk > 0
+            ? settings.TogglMonthlyTargetCzk.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
+            : "";
+
+        TogglApiKeyBox.LostFocus += async (_, _) => await OnTogglKeyChangedAsync();
+        TogglTargetBox.LostFocus += (_, _) => SaveSettings();
+
+        if (!string.IsNullOrWhiteSpace(settings.TogglApiKey))
+            _ = ValidateAndLoadProjectsAsync(settings.TogglApiKey);
+    }
+
+    private async Task OnTogglKeyChangedAsync()
+    {
+        var newKey = TogglApiKeyBox.Password.Trim();
+        var settings = SettingsStore.Instance;
+        if (newKey == settings.TogglApiKey) return;
+        settings.TogglApiKey = newKey;
+        settings.Save();
+        SettingsStore.RaiseVisibilityChanged();
+
+        if (string.IsNullOrEmpty(newKey))
+        {
+            TogglStatusText.Text = "";
+            TogglProjectsPanel.Children.Clear();
+            TogglProjectsLabel.Visibility = Visibility.Collapsed;
+            _togglRateBoxes.Clear();
+            return;
+        }
+
+        await ValidateAndLoadProjectsAsync(newKey);
+    }
+
+    private async Task ValidateAndLoadProjectsAsync(string apiKey)
+    {
+        TogglStatusText.Text = "Validating…";
+        TogglStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
+
+        var (ok, error) = await TogglApiClient.ValidateKeyAsync(apiKey);
+        if (!ok)
+        {
+            TogglStatusText.Text = $"✗ {error}";
+            TogglStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
+            TogglProjectsPanel.Children.Clear();
+            TogglProjectsLabel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        TogglStatusText.Text = "✓ Connected — loading projects…";
+        TogglStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+
+        try
+        {
+            var client = new TogglApiClient();
+            var projects = await client.FetchProjectsAsync(apiKey);
+            BuildTogglProjectsUI(projects);
+            TogglStatusText.Text = $"✓ Connected — {projects.Count} projekt(ů)";
+        }
+        catch (Exception ex)
+        {
+            TogglStatusText.Text = $"✗ Failed to load projects: {ex.Message}";
+            TogglStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
+        }
+    }
+
+    private void BuildTogglProjectsUI(IReadOnlyList<TogglProject> projects)
+    {
+        TogglProjectsPanel.Children.Clear();
+        _togglRateBoxes.Clear();
+
+        if (projects.Count == 0)
+        {
+            TogglProjectsLabel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        TogglProjectsLabel.Visibility = Visibility.Visible;
+        var settings = SettingsStore.Instance;
+
+        foreach (var p in projects.Where(p => p.Active))
+        {
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+
+            var labelText = p.ClientName != null ? $"{p.ClientName} / {p.Name}" : p.Name;
+            var labelBlock = new TextBlock
+            {
+                Text = labelText,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                ToolTip = labelText
+            };
+            Grid.SetColumn(labelBlock, 0);
+
+            var currentRate = settings.TogglProjectRates.TryGetValue(p.Id, out var r) ? r : 0;
+            var box = new TextBox
+            {
+                Text = currentRate > 0
+                    ? currentRate.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
+                    : "",
+                Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x2A)),
+                Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+                FontSize = 10,
+                Padding = new Thickness(4, 2, 4, 2),
+                HorizontalContentAlignment = HorizontalAlignment.Right
+            };
+            box.LostFocus += (_, _) => SaveSettings();
+            Grid.SetColumn(box, 1);
+
+            grid.Children.Add(labelBlock);
+            grid.Children.Add(box);
+            TogglProjectsPanel.Children.Add(grid);
+
+            _togglRateBoxes[p.Id] = box;
+        }
     }
 
     private void BuildChartWindowsUI(SettingsStore settings)
@@ -127,6 +271,32 @@ public partial class SettingsWindow : Window
             if (double.TryParse(box.Text, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out var hours) && hours > 0)
                 settings.ChartWindowHours[label] = hours;
+        }
+
+        var targetRaw = TogglTargetBox.Text.Trim();
+        if (string.IsNullOrEmpty(targetRaw))
+        {
+            settings.TogglMonthlyTargetCzk = 0;
+        }
+        else if (double.TryParse(targetRaw, System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var target) && target >= 0)
+        {
+            settings.TogglMonthlyTargetCzk = target;
+        }
+
+        foreach (var (projectId, box) in _togglRateBoxes)
+        {
+            var raw = box.Text.Trim();
+            if (string.IsNullOrEmpty(raw))
+            {
+                settings.TogglProjectRates.Remove(projectId);
+            }
+            else if (double.TryParse(raw, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var rate) && rate >= 0)
+            {
+                if (rate > 0) settings.TogglProjectRates[projectId] = rate;
+                else settings.TogglProjectRates.Remove(projectId);
+            }
         }
 
         settings.Save();

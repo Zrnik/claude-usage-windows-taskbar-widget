@@ -8,13 +8,26 @@ internal sealed class SettingsStore
 
     private const string RegistryPath = @"Software\ClaudeUsageWidget";
     private const string ChartWindowsSubKey = @"Software\ClaudeUsageWidget\ChartWindows";
+    private const string TogglRatesSubKey = @"Software\ClaudeUsageWidget\TogglRates";
 
     public bool NotificationsEnabled { get; set; }
     public bool NotifyOnReset { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
 
+    public bool ShowClaude { get; set; } = true;
+    public bool ShowCodex { get; set; } = true;
+    public bool ShowToggl { get; set; } = true;
+
+    public static event Action? VisibilityChanged;
+    public static void RaiseVisibilityChanged() => VisibilityChanged?.Invoke();
+
     // label → hours override (e.g. "unified-5h" → 48)
     public Dictionary<string, double> ChartWindowHours { get; private set; } = new();
+
+    public string TogglApiKey { get; set; } = "";
+    public double TogglMonthlyTargetCzk { get; set; }
+    // project_id → CZK/hour
+    public Dictionary<long, double> TogglProjectRates { get; private set; } = new();
 
     private SettingsStore()
     {
@@ -30,20 +43,48 @@ internal sealed class SettingsStore
             NotificationsEnabled = (int)(key.GetValue("NotificationsEnabled", 0) ?? 0) != 0;
             NotifyOnReset = (int)(key.GetValue("NotifyOnReset", 0) ?? 0) != 0;
             AlwaysOnTop = (int)(key.GetValue("AlwaysOnTop", 1) ?? 1) != 0;
+            ShowClaude = (int)(key.GetValue("ShowClaude", 1) ?? 1) != 0;
+            ShowCodex = (int)(key.GetValue("ShowCodex", 1) ?? 1) != 0;
+            ShowToggl = (int)(key.GetValue("ShowToggl", 1) ?? 1) != 0;
+            TogglApiKey = key.GetValue("TogglApiKey") as string ?? "";
+            var targetRaw = key.GetValue("TogglMonthlyTargetCzk") as string;
+            if (!string.IsNullOrEmpty(targetRaw) &&
+                double.TryParse(targetRaw, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var target))
+                TogglMonthlyTargetCzk = target;
         }
         catch { }
 
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(ChartWindowsSubKey);
-            if (key == null) return;
-            foreach (var name in key.GetValueNames())
+            if (key != null)
             {
-                var raw = key.GetValue(name);
-                double hours = 0;
-                if (raw is int intVal) hours = intVal; // legacy: days stored as DWord
-                else if (raw is string str) double.TryParse(str, System.Globalization.CultureInfo.InvariantCulture, out hours);
-                if (hours > 0) ChartWindowHours[name] = hours;
+                foreach (var name in key.GetValueNames())
+                {
+                    var raw = key.GetValue(name);
+                    double hours = 0;
+                    if (raw is int intVal) hours = intVal; // legacy: days stored as DWord
+                    else if (raw is string str) double.TryParse(str, System.Globalization.CultureInfo.InvariantCulture, out hours);
+                    if (hours > 0) ChartWindowHours[name] = hours;
+                }
+            }
+        }
+        catch { }
+
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(TogglRatesSubKey);
+            if (key != null)
+            {
+                foreach (var name in key.GetValueNames())
+                {
+                    if (!long.TryParse(name, out var projectId)) continue;
+                    var raw = key.GetValue(name) as string;
+                    if (raw != null && double.TryParse(raw, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out var rate) && rate > 0)
+                        TogglProjectRates[projectId] = rate;
+                }
             }
         }
         catch { }
@@ -57,6 +98,13 @@ internal sealed class SettingsStore
             key.SetValue("NotificationsEnabled", NotificationsEnabled ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("NotifyOnReset", NotifyOnReset ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("AlwaysOnTop", AlwaysOnTop ? 1 : 0, RegistryValueKind.DWord);
+            key.SetValue("ShowClaude", ShowClaude ? 1 : 0, RegistryValueKind.DWord);
+            key.SetValue("ShowCodex", ShowCodex ? 1 : 0, RegistryValueKind.DWord);
+            key.SetValue("ShowToggl", ShowToggl ? 1 : 0, RegistryValueKind.DWord);
+            key.SetValue("TogglApiKey", TogglApiKey, RegistryValueKind.String);
+            key.SetValue("TogglMonthlyTargetCzk",
+                TogglMonthlyTargetCzk.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                RegistryValueKind.String);
         }
         catch { }
 
@@ -65,6 +113,20 @@ internal sealed class SettingsStore
             using var key = Registry.CurrentUser.CreateSubKey(ChartWindowsSubKey);
             foreach (var (label, hours) in ChartWindowHours)
                 key.SetValue(label, hours.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
+        }
+        catch { }
+
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(TogglRatesSubKey);
+            // Remove stale values not in current dict
+            foreach (var name in key.GetValueNames())
+                if (!long.TryParse(name, out var id) || !TogglProjectRates.ContainsKey(id))
+                    key.DeleteValue(name, throwOnMissingValue: false);
+            foreach (var (projectId, rate) in TogglProjectRates)
+                key.SetValue(projectId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    rate.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    RegistryValueKind.String);
         }
         catch { }
     }

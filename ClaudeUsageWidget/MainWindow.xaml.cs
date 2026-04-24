@@ -100,9 +100,12 @@ public partial class MainWindow : Window
     private bool _fullscreenMode;
     // accountKey → latest usage, shared across all MainWindow instances
     private static readonly Dictionary<string, UsageData> SharedUsage = [];
+    private static TogglUsageData? _sharedTogglUsage;
     private static event Action? UsageUpdated;
 
     private readonly List<(ClaudeApiClient Client, AccountPanel Panel, UsageData? LastUsage)> _accounts = [];
+    private (TogglApiClient Client, AccountPanel Panel, TogglUsageData? LastUsage)? _togglAccount;
+    private int _refreshTick;
     private readonly UsageHistoryStore _historyStore = UsageHistoryStore.Instance;
     private readonly IntPtr _taskbarHwnd;
     private readonly bool _isPrimary;
@@ -144,6 +147,7 @@ public partial class MainWindow : Window
         {
             if (!_isPrimary)
                 UsageUpdated -= OnSharedUsageUpdated;
+            SettingsStore.VisibilityChanged -= OnVisibilityChanged;
             _topMostEnforcer?.Dispose();
             _popup?.Close();
             _refreshTimer?.Stop();
@@ -162,7 +166,7 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
-    internal MainWindow(List<ClaudeApiClient> clients, IntPtr taskbarHwnd, bool isPrimary)
+    internal MainWindow(List<ClaudeApiClient> clients, TogglApiClient? togglClient, IntPtr taskbarHwnd, bool isPrimary)
     {
         _taskbarHwnd = taskbarHwnd;
         _isPrimary = isPrimary;
@@ -182,12 +186,24 @@ public partial class MainWindow : Window
             _accounts.Add((client, panel, null));
         }
 
+        // Always instantiate Toggl client + panel so the tile can hot-reload when API key is entered
+        var togglInstance = togglClient ?? new TogglApiClient();
+        var togglPanelInstance = new AccountPanel(ServiceType.Toggl);
+        togglPanelInstance.MouseEnter += (_, _) => ShowPopupForToggl();
+        togglPanelInstance.MouseLeave += (_, _) => HidePopup();
+        togglPanelInstance.MouseLeftButtonDown += (_, args) =>
+        {
+            if (args.ClickCount == 2) _ = ForceRefreshToggl();
+        };
+        AccountsPanel.Children.Add(togglPanelInstance);
+        _togglAccount = (togglInstance, togglPanelInstance, null);
+
 #if DEBUG
         AccountsPanel.Background = new SolidColorBrush(Color.FromArgb(0x40, 0x80, 0x00, 0xFF));
 #endif
 
-        const double ColWidth = 170.0;
-        Width = ColWidth * clients.Count;
+        ApplyTileVisibility();
+        SettingsStore.VisibilityChanged += OnVisibilityChanged;
 
         if (!_isPrimary)
             UsageUpdated += OnSharedUsageUpdated;
@@ -204,7 +220,10 @@ public partial class MainWindow : Window
             if (_isPrimary)
             {
                 foreach (var (_, panel, _) in _accounts)
-                    panel.ShowLoadingState();
+                    if (panel.Visibility == Visibility.Visible)
+                        panel.ShowLoadingState();
+                if (_togglAccount?.Panel.Visibility == Visibility.Visible)
+                    _togglAccount?.Panel.ShowLoadingState();
 
                 StartSpinnerTimer();
 
@@ -216,15 +235,32 @@ public partial class MainWindow : Window
                     if (usage != null)
                     {
                         _accounts[index] = (client, panel, usage);
-                        panel.UpdateBars(usage);
+                        if (panel.Visibility == Visibility.Visible)
+                            panel.UpdateBars(usage);
                         _historyStore.Append(client.AccountKey, usage);
                         NotificationService.Instance.CheckAndNotify(client.AccountKey, usage);
                         if (client.AccountKey != null)
                             SharedUsage[client.AccountKey] = usage;
                     }
-                    else
+                    else if (panel.Visibility == Visibility.Visible)
                     {
                         panel.ShowErrorState(client.LastError);
+                    }
+                }
+
+                if (_togglAccount is { } toggl && toggl.Panel.Visibility == Visibility.Visible)
+                {
+                    var togglUsage = await toggl.Client.GetUsageAsync();
+                    if (togglUsage != null)
+                    {
+                        _togglAccount = (toggl.Client, toggl.Panel, togglUsage);
+                        toggl.Panel.UpdateTogglBars(togglUsage);
+                        TogglHistoryStore.Instance.Append(togglUsage);
+                        _sharedTogglUsage = togglUsage;
+                    }
+                    else
+                    {
+                        toggl.Panel.ShowErrorState(toggl.Client.LastError);
                     }
                 }
 
@@ -367,9 +403,76 @@ public partial class MainWindow : Window
                     panel.ShowErrorState(client.LastError);
                 }
             }
+
+            _refreshTick++;
+            if (_refreshTick % 5 == 0 && _togglAccount is { } toggl &&
+                toggl.Panel.Visibility == Visibility.Visible)
+            {
+                var togglUsage = await toggl.Client.GetUsageAsync();
+                if (togglUsage != null)
+                {
+                    _togglAccount = (toggl.Client, toggl.Panel, togglUsage);
+                    toggl.Panel.UpdateTogglBars(togglUsage);
+                    TogglHistoryStore.Instance.Append(togglUsage);
+                    _sharedTogglUsage = togglUsage;
+                }
+                else
+                {
+                    toggl.Panel.ShowErrorState(toggl.Client.LastError);
+                }
+            }
+
             UsageUpdated?.Invoke();
         };
         _refreshTimer.Start();
+    }
+
+    private const double ColWidth = 170.0;
+
+    private void ApplyTileVisibility()
+    {
+        var settings = SettingsStore.Instance;
+        int visibleCount = 0;
+
+        foreach (var (client, panel, _) in _accounts)
+        {
+            bool show = client.AccountService switch
+            {
+                ServiceType.Claude => settings.ShowClaude,
+                ServiceType.Codex => settings.ShowCodex,
+                _ => true
+            };
+            panel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (show) visibleCount++;
+        }
+
+        if (_togglAccount is { } toggl)
+        {
+            bool togglVisible = settings.ShowToggl && !string.IsNullOrWhiteSpace(settings.TogglApiKey);
+            toggl.Panel.Visibility = togglVisible ? Visibility.Visible : Visibility.Collapsed;
+            if (togglVisible) visibleCount++;
+        }
+
+        // If nothing visible, keep minimum 1 column so the window isn't zero-width
+        Width = ColWidth * Math.Max(1, visibleCount);
+        if (IsLoaded) PositionWindow();
+    }
+
+    private void OnVisibilityChanged()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            bool togglWasVisible = _togglAccount?.Panel.Visibility == Visibility.Visible;
+            ApplyTileVisibility();
+            bool togglNowVisible = _togglAccount?.Panel.Visibility == Visibility.Visible;
+
+            // If Toggl just became visible and we're primary, trigger fresh fetch + loading state
+            if (_isPrimary && !togglWasVisible && togglNowVisible && _togglAccount is { } toggl)
+            {
+                toggl.Panel.ShowLoadingState();
+                _ = ForceRefreshToggl();
+            }
+        });
     }
 
     private void OnSharedUsageUpdated()
@@ -384,6 +487,12 @@ public partial class MainWindow : Window
                     _accounts[i] = (client, panel, usage);
                     panel.UpdateBars(usage);
                 }
+            }
+
+            if (_togglAccount is { } toggl && _sharedTogglUsage != null)
+            {
+                _togglAccount = (toggl.Client, toggl.Panel, _sharedTogglUsage);
+                toggl.Panel.UpdateTogglBars(_sharedTogglUsage);
             }
         });
     }
@@ -527,10 +636,24 @@ public partial class MainWindow : Window
         _trayWatchTimer.Start();
     }
 
+    private double GetPanelLeftOffset(AccountPanel panel)
+    {
+        try
+        {
+            var transform = panel.TransformToAncestor(AccountsPanel);
+            return transform.Transform(new Point(0, 0)).X;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     private void ShowPopupForAccount(int index)
     {
         if (index >= _accounts.Count) return;
-        var (client, _, lastUsage) = _accounts[index];
+        var (client, panel, lastUsage) = _accounts[index];
+        if (panel.Visibility != Visibility.Visible) return;
         if (lastUsage == null && client.LastError == null) return;
         if (_popup == null)
         {
@@ -538,9 +661,42 @@ public partial class MainWindow : Window
             _popup.Owner = this;
             _popup.MouseLeave += (_, _) => HidePopup();
         }
-        const double ColWidth = 170.0;
         _popup.UpdateAndShow(lastUsage, client.LastError, client.CredentialPath,
-            Left + index * ColWidth, Top, client.AccountKey);
+            Left + GetPanelLeftOffset(panel), Top, client.AccountKey);
+    }
+
+    private void ShowPopupForToggl()
+    {
+        if (_togglAccount is not { } toggl) return;
+        if (toggl.Panel.Visibility != Visibility.Visible) return;
+        if (toggl.LastUsage == null && toggl.Client.LastError == null) return;
+        if (_popup == null)
+        {
+            _popup = new PopupWindow();
+            _popup.Owner = this;
+            _popup.MouseLeave += (_, _) => HidePopup();
+        }
+        _popup.UpdateAndShowToggl(toggl.LastUsage, toggl.Client.LastError,
+            Left + GetPanelLeftOffset(toggl.Panel), Top);
+    }
+
+    private async Task ForceRefreshToggl()
+    {
+        if (!_isPrimary || _togglAccount is not { } toggl) return;
+        toggl.Panel.ShowLoadingState();
+        StartSpinnerTimer();
+        var usage = await toggl.Client.GetUsageAsync(forceRefresh: true);
+        StopSpinner();
+        if (usage != null)
+        {
+            _togglAccount = (toggl.Client, toggl.Panel, usage);
+            toggl.Panel.UpdateTogglBars(usage);
+            TogglHistoryStore.Instance.Append(usage);
+        }
+        else
+        {
+            toggl.Panel.ShowErrorState(toggl.Client.LastError);
+        }
     }
 
     private void HidePopup()

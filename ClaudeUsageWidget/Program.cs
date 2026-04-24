@@ -92,6 +92,11 @@ internal class App : Application
 
         var clients = accounts.Select(a => new ClaudeApiClient(a)).ToList();
 
+        // Toggl client — jen pokud je v Settings zadaný API key
+        TogglApiClient? togglClient = null;
+        if (!string.IsNullOrWhiteSpace(SettingsStore.Instance.TogglApiKey))
+            togglClient = new TogglApiClient();
+
         // Migrate history from %AppData% to %ProgramData% (persists across reinstalls)
         UsageHistoryStore.Instance.MigrateFromAppData();
 
@@ -104,12 +109,13 @@ internal class App : Application
         Exit += (_, _) =>
         {
             foreach (var c in clients) c.Dispose();
+            togglClient?.Dispose();
         };
 
         var primaryHwnd = FindWindow("Shell_TrayWnd", null);
 
         // Primární okno = všechny účty
-        var primaryWindow = new MainWindow(clients, primaryHwnd, isPrimary: true);
+        var primaryWindow = new MainWindow(clients, togglClient, primaryHwnd, isPrimary: true);
         MainWindow = primaryWindow;
         primaryWindow.Show();
 
@@ -119,7 +125,7 @@ internal class App : Application
             var sb = new StringBuilder(64);
             GetClassName(hwnd, sb, 64);
             if (sb.ToString() == "Shell_SecondaryTrayWnd")
-                new MainWindow(clients, hwnd, isPrimary: false).Show();
+                new MainWindow(clients, togglClient, hwnd, isPrimary: false).Show();
             return true;
         }, IntPtr.Zero);
     }

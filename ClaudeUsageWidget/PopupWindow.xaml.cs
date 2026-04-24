@@ -1,8 +1,10 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace ClaudeUsageWidgetProvider;
 
@@ -218,6 +220,386 @@ public partial class PopupWindow : Window
         SetWindowPos(hwnd, HwndTopmost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
         Show();
+    }
+
+    public void UpdateAndShowToggl(TogglUsageData? data, string? errorMessage,
+        double widgetLeft, double widgetTop)
+    {
+        LimitsPanel.Children.Clear();
+
+        if (data != null)
+        {
+            BuildTogglPopup(data);
+        }
+
+        if (errorMessage != null)
+        {
+            if (LimitsPanel.Children.Count > 0)
+                AddSeparator();
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = errorMessage,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36)),
+                FontSize = 9,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260
+            });
+        }
+
+        AddSeparator();
+        var footerGrid = new Grid();
+        footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var source = new TextBlock
+        {
+            Text = "Toggl Track",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+            FontSize = 8
+        };
+        Grid.SetColumn(source, 0);
+        var versionBlock = new TextBlock
+        {
+            Text = $"v{Updater.CurrentVersion}",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+            FontSize = 8,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        Grid.SetColumn(versionBlock, 1);
+        footerGrid.Children.Add(source);
+        footerGrid.Children.Add(versionBlock);
+        LimitsPanel.Children.Add(footerGrid);
+
+        UpdateLayout();
+        Left = widgetLeft;
+        Top = widgetTop - ActualHeight - 4;
+
+        var helper = new WindowInteropHelper(this);
+        helper.EnsureHandle();
+        SetWindowPos(helper.Handle, HwndTopmost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        Show();
+    }
+
+    private void BuildTogglPopup(TogglUsageData data)
+    {
+        var now = DateTimeOffset.Now;
+        var monthStart = data.MonthStart;
+        var monthEnd = data.MonthResetsAt;
+        int wdTotal = CountWorkingDays(monthStart, monthEnd.AddDays(-1));
+        int wdElapsed = CountWorkingDays(monthStart, now);
+        int wdRemaining = Math.Max(0, wdTotal - wdElapsed);
+
+        double targetPerDay = wdTotal > 0 ? data.TargetCzk / wdTotal : 0;
+        double expectedSoFar = targetPerDay * wdElapsed;
+        double delta = data.EarnedCzk - expectedSoFar;
+        double deltaDays = targetPerDay > 0 ? delta / targetPerDay : 0;
+        double remaining = Math.Max(0, data.TargetCzk - data.EarnedCzk);
+        double impliedRate = (wdTotal > 0 && data.TargetCzk > 0) ? data.TargetCzk / (wdTotal * 8.0) : 0;
+        double requiredHoursPerDay = (impliedRate > 0 && wdRemaining > 0) ? remaining / (impliedRate * wdRemaining) : 0;
+        double pct = data.TargetCzk > 0 ? Math.Min(100.0, data.EarnedCzk / data.TargetCzk * 100.0) : 0;
+
+        // Header
+        LimitsPanel.Children.Add(new TextBlock
+        {
+            Text = "TOGGL TRACK",
+            Foreground = Brushes.Gray,
+            FontSize = 9,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+
+        // Progress bar same style as Claude popup
+        var barContainer = new Grid { Height = 14, Margin = new Thickness(0, 0, 0, 4) };
+        var track = new Border { Background = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33)), CornerRadius = new CornerRadius(2) };
+        var fill = new Border
+        {
+            HorizontalAlignment = HorizontalAlignment.Left,
+            CornerRadius = new CornerRadius(2),
+            Background = new SolidColorBrush(data.EarnedCzk >= data.TargetCzk && data.TargetCzk > 0
+                ? Color.FromRgb(0x21, 0x96, 0xF3)
+                : Color.FromRgb(0x4C, 0xAF, 0x50))
+        };
+        fill.SetBinding(WidthProperty, new System.Windows.Data.Binding("ActualWidth")
+        {
+            Source = barContainer,
+            Converter = new PercentWidthConverter(),
+            ConverterParameter = pct
+        });
+        var pctOverlay = new TextBlock
+        {
+            Text = $"{FormatCzk(data.EarnedCzk)} / {FormatCzk(data.TargetCzk)}  ({pct:0}%)",
+            Foreground = Brushes.White,
+            FontSize = 9,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        barContainer.Children.Add(track);
+        barContainer.Children.Add(fill);
+        barContainer.Children.Add(pctOverlay);
+        LimitsPanel.Children.Add(barContainer);
+
+        // Pace block
+        LimitsPanel.Children.Add(MakeLine(
+            $"Plán: {FormatCzk(data.EarnedCzk)} / {FormatCzk(expectedSoFar)} očekáváno",
+            Brushes.LightGray));
+
+        var deltaColor = delta >= 0
+            ? Color.FromRgb(0x4C, 0xAF, 0x50)
+            : deltaDays > -1
+                ? Color.FromRgb(0xFF, 0x98, 0x00)
+                : Color.FromRgb(0xF4, 0x43, 0x36);
+        string deltaSign = delta >= 0 ? "+" : "";
+        LimitsPanel.Children.Add(MakeLine(
+            $"Delta: {deltaSign}{FormatCzk(delta)} ({deltaSign}{deltaDays:0.#} dne)",
+            new SolidColorBrush(deltaColor)));
+
+        double perDayNeeded = wdRemaining > 0 ? remaining / wdRemaining : 0;
+        LimitsPanel.Children.Add(MakeLine(
+            $"Zbývá: {wdRemaining} prac. dnů · {FormatCzk(perDayNeeded)}/den",
+            Brushes.LightGray));
+
+        if (requiredHoursPerDay > 0 && wdRemaining > 0)
+        {
+            var hColor = requiredHoursPerDay <= 8
+                ? Color.FromRgb(0x4C, 0xAF, 0x50)
+                : requiredHoursPerDay <= 10
+                    ? Color.FromRgb(0xFF, 0x98, 0x00)
+                    : Color.FromRgb(0xF4, 0x43, 0x36);
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = $"Ideálně: {requiredHoursPerDay:0.#} h/den (Po–Pá)",
+                Foreground = new SolidColorBrush(hColor),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 2, 0, 1)
+            });
+
+            // Weekend-inclusive variant
+            int calDaysRemaining = Math.Max(0, (int)Math.Ceiling((monthEnd - now).TotalDays));
+            if (calDaysRemaining > 0 && impliedRate > 0)
+            {
+                double reqHoursAllDays = remaining / (impliedRate * calDaysRemaining);
+                var hColor2 = reqHoursAllDays <= 8
+                    ? Color.FromRgb(0x4C, 0xAF, 0x50)
+                    : reqHoursAllDays <= 10
+                        ? Color.FromRgb(0xFF, 0x98, 0x00)
+                        : Color.FromRgb(0xF4, 0x43, 0x36);
+                LimitsPanel.Children.Add(new TextBlock
+                {
+                    Text = $"Ideálně: {reqHoursAllDays:0.#} h/den (vč. víkendů, {calDaysRemaining}d)",
+                    Foreground = new SolidColorBrush(hColor2),
+                    FontSize = 10,
+                    Margin = new Thickness(0, 0, 0, 4)
+                });
+            }
+        }
+        else if (remaining <= 0 && data.TargetCzk > 0)
+        {
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = "✓ Cíl splněn",
+                Foreground = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 2, 0, 4)
+            });
+        }
+
+        // Breakdown per project
+        if (data.Breakdown.Count > 0)
+        {
+            AddSeparator();
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = "PROJEKTY",
+                Foreground = Brushes.Gray,
+                FontSize = 9,
+                Margin = new Thickness(0, 0, 0, 2)
+            });
+
+            foreach (var p in data.Breakdown)
+            {
+                var label = p.ClientName != null
+                    ? $"{p.ClientName} / {p.ProjectName}"
+                    : p.ProjectName;
+                var grid = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var left = new TextBlock
+                {
+                    Text = label,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                    FontSize = 9,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxWidth = 170
+                };
+                Grid.SetColumn(left, 0);
+
+                var rateStr = p.RateCzk > 0
+                    ? $"{p.Hours:0.#}h × {p.RateCzk:0} = {FormatCzk(p.Earned)}"
+                    : $"{p.Hours:0.#}h (bez rate)";
+                var right = new TextBlock
+                {
+                    Text = rateStr,
+                    Foreground = new SolidColorBrush(p.RateCzk > 0
+                        ? Color.FromRgb(0xCC, 0xCC, 0xCC)
+                        : Color.FromRgb(0x66, 0x66, 0x66)),
+                    FontSize = 9
+                };
+                Grid.SetColumn(right, 1);
+
+                grid.Children.Add(left);
+                grid.Children.Add(right);
+                LimitsPanel.Children.Add(grid);
+            }
+        }
+
+        // Cumulative chart
+        AddSeparator();
+        LimitsPanel.Children.Add(new TextBlock
+        {
+            Text = "PRŮBĚH MĚSÍCE",
+            Foreground = Brushes.Gray,
+            FontSize = 9,
+            Margin = new Thickness(0, 0, 0, 2)
+        });
+        LimitsPanel.Children.Add(BuildCumulativeChart(data, monthStart, monthEnd));
+    }
+
+    private static TextBlock MakeLine(string text, Brush fg) => new()
+    {
+        Text = text,
+        Foreground = fg,
+        FontSize = 9,
+        Margin = new Thickness(0, 1, 0, 1)
+    };
+
+    private static int CountWorkingDays(DateTimeOffset from, DateTimeOffset to)
+    {
+        if (to < from) return 0;
+        int count = 0;
+        var d = from.Date;
+        var end = to.Date;
+        while (d <= end)
+        {
+            if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                count++;
+            d = d.AddDays(1);
+        }
+        return count;
+    }
+
+    private static string FormatCzk(double czk)
+    {
+        if (double.IsNaN(czk) || double.IsInfinity(czk)) return "— Kč";
+        // Czech style: "50 000 Kč" with non-breaking space as thousand separator, no decimals
+        var nfi = (System.Globalization.NumberFormatInfo)System.Globalization.CultureInfo.InvariantCulture.NumberFormat.Clone();
+        nfi.NumberGroupSeparator = " "; // non-breaking space
+        nfi.NumberDecimalDigits = 0;
+        return $"{czk.ToString("N", nfi)} Kč";
+    }
+
+    private static UIElement BuildCumulativeChart(TogglUsageData current, DateTimeOffset monthStart, DateTimeOffset monthEnd)
+    {
+        var canvas = new Canvas { Height = 50, Background = Brushes.Transparent };
+        canvas.SizeChanged += (_, _) => RenderCumulativeChart(canvas, current, monthStart, monthEnd);
+        // Trigger once on Loaded if SizeChanged hasn't fired yet
+        canvas.Loaded += (_, _) => RenderCumulativeChart(canvas, current, monthStart, monthEnd);
+        return canvas;
+    }
+
+    private static void RenderCumulativeChart(Canvas canvas, TogglUsageData current,
+        DateTimeOffset monthStart, DateTimeOffset monthEnd)
+    {
+        canvas.Children.Clear();
+        double w = canvas.ActualWidth;
+        double h = canvas.ActualHeight;
+        if (w <= 0 || h <= 0) return;
+
+        double target = Math.Max(current.TargetCzk, current.EarnedCzk);
+        if (target <= 0) return;
+
+        int totalDays = (int)Math.Round((monthEnd - monthStart).TotalDays);
+        if (totalDays <= 0) return;
+
+        // Ideal pace line (0 at day 0, target at last day)
+        const double padX = 2, padY = 2;
+        double chartW = w - 2 * padX;
+        double chartH = h - 2 * padY;
+
+        double MapY(double value) => padY + (1.0 - value / target) * chartH;
+        double MapX(double dayOffset) => padX + (dayOffset / totalDays) * chartW;
+
+        // Reference line at 100%
+        canvas.Children.Add(new Line
+        {
+            X1 = padX, X2 = w - padX,
+            Y1 = MapY(current.TargetCzk), Y2 = MapY(current.TargetCzk),
+            Stroke = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
+            StrokeThickness = 0.5,
+            StrokeDashArray = new DoubleCollection { 4, 3 }
+        });
+
+        // Ideal pace (diagonal from 0,0 bottom-left to target,lastDay top-right)
+        canvas.Children.Add(new Line
+        {
+            X1 = MapX(0), Y1 = MapY(0),
+            X2 = MapX(totalDays), Y2 = MapY(current.TargetCzk),
+            Stroke = new SolidColorBrush(Color.FromArgb(0x66, 0xAA, 0xAA, 0xAA)),
+            StrokeThickness = 1.0,
+            StrokeDashArray = new DoubleCollection { 3, 3 }
+        });
+
+        // Actual cumulative from history
+        var history = TogglHistoryStore.Instance.GetCurrentMonth();
+        var points = new PointCollection();
+        points.Add(new Point(MapX(0), MapY(0)));
+        foreach (var rec in history)
+        {
+            if (!DateTimeOffset.TryParse(rec.Date, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeLocal, out var d)) continue;
+            double dayOffset = (d - monthStart).TotalDays + 1; // end-of-day
+            if (dayOffset < 0 || dayOffset > totalDays) continue;
+            points.Add(new Point(MapX(dayOffset), MapY(rec.EarnedCzk)));
+        }
+
+        // Ensure latest point reflects current live value at 'now'
+        var now = DateTimeOffset.Now;
+        double nowOffset = (now - monthStart).TotalDays;
+        if (nowOffset >= 0 && nowOffset <= totalDays)
+        {
+            var nowPoint = new Point(MapX(nowOffset), MapY(current.EarnedCzk));
+            if (points.Count == 0 || points[^1].X < nowPoint.X)
+                points.Add(nowPoint);
+            else
+                points[^1] = nowPoint;
+        }
+
+        if (points.Count >= 2)
+        {
+            var lineColor = current.EarnedCzk >= current.TargetCzk && current.TargetCzk > 0
+                ? Color.FromRgb(0x21, 0x96, 0xF3)
+                : Color.FromRgb(0x4C, 0xAF, 0x50);
+
+            // Fill under curve
+            var fillPoints = new PointCollection(points)
+            {
+                new Point(points[^1].X, MapY(0)),
+                new Point(points[0].X, MapY(0))
+            };
+            canvas.Children.Add(new Polygon
+            {
+                Points = fillPoints,
+                Fill = new SolidColorBrush(lineColor) { Opacity = 0.20 },
+                Stroke = null
+            });
+            canvas.Children.Add(new Polyline
+            {
+                Points = points,
+                Stroke = new SolidColorBrush(lineColor),
+                StrokeThickness = 1.5,
+                Fill = null
+            });
+        }
     }
 
     private void AddSeparator() =>
