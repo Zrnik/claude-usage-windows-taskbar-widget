@@ -344,20 +344,41 @@ internal sealed class JiraApiClient : IDisposable
             var json = await response.Content.ReadAsStringAsync();
             var arr = JsonNode.Parse(json) as JsonArray;
             if (arr == null) return null;
-            // Try: exact match → contains "story" and "point" (case-insensitive)
-            string? fuzzyMatch = null;
+
+            // Strategy 1 — match by schema.custom (stable across name localizations).
+            // Atlassian's known story-points field types:
+            //   "com.pyxis.greenhopper.jira:gh-sprint-story-points"          (Jira Software classic)
+            //   "com.pyxis.greenhopper.jira:jsw-story-points"                (newer)
+            //   "com.atlassian.jira.plugin.system.customfieldtypes:float" + name contains story/point
+            //   "com.atlassian.jpo:jpo-custom-field-story-points"            (Portfolio/Plans)
+            foreach (var f in arr)
+            {
+                var schemaCustom = f?["schema"]?["custom"]?.GetValue<string>() ?? "";
+                if (schemaCustom.Contains("story-point", StringComparison.OrdinalIgnoreCase) ||
+                    schemaCustom.Contains("storypoint", StringComparison.OrdinalIgnoreCase))
+                    return f?["id"]?.GetValue<string>();
+            }
+
+            // Strategy 2 — exact English name match.
             foreach (var f in arr)
             {
                 var name = f?["name"]?.GetValue<string>() ?? "";
                 if (string.Equals(name, "Story Points", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(name, "Story Points Estimate", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(name, "Story point estimate", StringComparison.OrdinalIgnoreCase))
                     return f?["id"]?.GetValue<string>();
-                if (fuzzyMatch == null &&
-                    name.Contains("story", StringComparison.OrdinalIgnoreCase) &&
-                    name.Contains("point", StringComparison.OrdinalIgnoreCase))
-                    fuzzyMatch = f?["id"]?.GetValue<string>();
             }
-            return fuzzyMatch;
+
+            // Strategy 3 — fuzzy: name contains both "story" and "point".
+            foreach (var f in arr)
+            {
+                var name = f?["name"]?.GetValue<string>() ?? "";
+                if (name.Contains("story", StringComparison.OrdinalIgnoreCase) &&
+                    name.Contains("point", StringComparison.OrdinalIgnoreCase))
+                    return f?["id"]?.GetValue<string>();
+            }
+
+            return null;
         }
         catch { return null; }
     }
@@ -421,10 +442,25 @@ internal sealed class JiraApiClient : IDisposable
                 string? accountId = assignee?["accountId"]?.GetValue<string>();
                 string? displayName = assignee?["displayName"]?.GetValue<string>();
                 double sp = 0;
-                if (storyPointsField != null && fields?[storyPointsField] != null)
+                if (storyPointsField != null && fields?[storyPointsField] is { } spNode)
                 {
-                    try { sp = fields[storyPointsField]!.GetValue<double>(); }
-                    catch { sp = 0; }
+                    // Story Points can be stored as int, long, or double depending on instance.
+                    try { sp = spNode.GetValue<double>(); }
+                    catch
+                    {
+                        try { sp = spNode.GetValue<long>(); }
+                        catch
+                        {
+                            try { sp = spNode.GetValue<int>(); }
+                            catch
+                            {
+                                if (spNode.GetValue<object?>() is string s &&
+                                    double.TryParse(s, System.Globalization.NumberStyles.Any,
+                                        System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+                                    sp = parsed;
+                            }
+                        }
+                    }
                 }
                 DateTimeOffset? updated = null;
                 var updStr = fields?["updated"]?.GetValue<string>();

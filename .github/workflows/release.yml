@@ -16,10 +16,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: ClaudeUsageWidget/ClaudeUsageWidget.csproj
 
       - name: Extract version from tag
         id: version
