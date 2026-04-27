@@ -28,6 +28,12 @@ internal sealed class SettingsStore
     public static event Action? VisibilityChanged;
     public static void RaiseVisibilityChanged() => VisibilityChanged?.Invoke();
 
+    public static event Action? TogglRefreshRequested;
+    public static void RaiseTogglRefreshRequested() => TogglRefreshRequested?.Invoke();
+
+    public static event Action? JiraRefreshRequested;
+    public static void RaiseJiraRefreshRequested() => JiraRefreshRequested?.Invoke();
+
     // label → hours override (e.g. "unified-5h" → 48)
     public Dictionary<string, double> ChartWindowHours { get; private set; } = new();
 

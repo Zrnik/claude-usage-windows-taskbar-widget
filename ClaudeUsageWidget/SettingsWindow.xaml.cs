@@ -47,6 +47,9 @@ public partial class SettingsWindow : Window
         InitTogglUI(settings);
         InitJiraUI(settings);
 
+        TogglRefreshButton.Click += (_, _) => SettingsStore.RaiseTogglRefreshRequested();
+        JiraRefreshButton.Click += (_, _) => SettingsStore.RaiseJiraRefreshRequested();
+
         ShowClaudeCheck.Checked += (_, _) => SaveVisibility();
         ShowClaudeCheck.Unchecked += (_, _) => SaveVisibility();
         ShowCodexCheck.Checked += (_, _) => SaveVisibility();
@@ -225,7 +228,7 @@ public partial class SettingsWindow : Window
         try
         {
             JiraProjectCombo.ItemsSource = projects;
-            JiraProjectCombo.DisplayMemberPath = "Name";
+            JiraProjectCombo.DisplayMemberPath = "Display";
             JiraProjectCombo.SelectedItem = projects.FirstOrDefault(p =>
                 string.Equals(p.Key, currentKey, StringComparison.OrdinalIgnoreCase));
         }

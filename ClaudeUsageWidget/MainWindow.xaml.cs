@@ -217,6 +217,8 @@ public partial class MainWindow : Window
 
         ApplyTileVisibility();
         SettingsStore.VisibilityChanged += OnVisibilityChanged;
+        SettingsStore.TogglRefreshRequested += () => Dispatcher.Invoke(() => _ = ForceRefreshToggl());
+        SettingsStore.JiraRefreshRequested += () => Dispatcher.Invoke(() => _ = ForceRefreshJira());
 
         if (!_isPrimary)
             UsageUpdated += OnSharedUsageUpdated;

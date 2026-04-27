@@ -15,6 +15,7 @@ public sealed class JiraProject
 {
     public string Key { get; set; } = "";
     public string Name { get; set; } = "";
+    public string Display => $"{Name}  ({Key})";
 }
 
 public sealed class JiraIssueStat

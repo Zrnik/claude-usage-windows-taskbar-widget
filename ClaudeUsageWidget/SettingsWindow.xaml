@@ -105,7 +105,18 @@
 
                 <!-- COLUMN 2: Toggl Track -->
                 <StackPanel Grid.Column="2">
-                    <TextBlock Text="Toggl Track" Foreground="White" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Toggl Track" Foreground="White" FontSize="12"
+                                   FontWeight="SemiBold" Grid.Column="0" VerticalAlignment="Center"/>
+                        <Button x:Name="TogglRefreshButton" Content="↻ Refresh" Grid.Column="1"
+                                Padding="8,2" FontSize="10" Cursor="Hand"
+                                Background="#333333" Foreground="White" BorderBrush="#555555"
+                                ToolTip="Force refresh now (same as double-click on tile)"/>
+                    </Grid>
 
                     <Grid Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
@@ -161,7 +172,18 @@
 
                 <!-- COLUMN 3: JIRA -->
                 <StackPanel Grid.Column="4">
-                    <TextBlock Text="JIRA" Foreground="White" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="JIRA" Foreground="White" FontSize="12"
+                                   FontWeight="SemiBold" Grid.Column="0" VerticalAlignment="Center"/>
+                        <Button x:Name="JiraRefreshButton" Content="↻ Refresh" Grid.Column="1"
+                                Padding="8,2" FontSize="10" Cursor="Hand"
+                                Background="#333333" Foreground="White" BorderBrush="#555555"
+                                ToolTip="Force refresh now (same as double-click on tile)"/>
+                    </Grid>
 
                     <Grid Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
@@ -209,7 +231,26 @@
                         <ComboBox x:Name="JiraProjectCombo" Grid.Column="1"
                                   Background="#2A2A2A" Foreground="White"
                                   BorderBrush="#555555" FontSize="10" Padding="4,2"
-                                  ToolTip="Select JIRA project (loaded after credentials are valid)"/>
+                                  ToolTip="Select JIRA project (loaded after credentials are valid)">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#2A2A2A"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="Padding" Value="6,3"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#3A3A3A"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Display}" Foreground="White"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </Grid>
 
                     <TextBlock x:Name="JiraDevsLabel" Text="Compare with developers" Foreground="White"
