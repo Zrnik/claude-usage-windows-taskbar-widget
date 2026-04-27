@@ -92,21 +92,31 @@ public partial class SettingsWindow : Window
 
     private readonly Dictionary<string, CheckBox> _jiraDevCheckboxes = new();
 
+    private bool _suppressJiraProjectChange;
+
     private void InitJiraUI(SettingsStore settings)
     {
         JiraUrlBox.Text = settings.JiraUrl;
         JiraEmailBox.Text = settings.JiraEmail;
         JiraTokenBox.Password = settings.JiraApiToken;
-        JiraProjectBox.Text = settings.JiraProjectKey;
 
         JiraUrlBox.LostFocus += (_, _) => SaveAndValidateJiraSafe();
         JiraEmailBox.LostFocus += (_, _) => SaveAndValidateJiraSafe();
         JiraTokenBox.LostFocus += (_, _) => SaveAndValidateJiraSafe();
-        JiraProjectBox.LostFocus += (_, _) => SaveAndValidateJiraSafe();
+        JiraProjectCombo.SelectionChanged += (_, _) =>
+        {
+            if (_suppressJiraProjectChange) return;
+            SaveAndValidateJiraSafe();
+        };
 
-        if (HasJiraCreds(settings))
+        if (HasJiraUrlEmailToken(settings))
             SaveAndValidateJiraSafe();
     }
+
+    private static bool HasJiraUrlEmailToken(SettingsStore s) =>
+        !string.IsNullOrWhiteSpace(s.JiraUrl) &&
+        !string.IsNullOrWhiteSpace(s.JiraEmail) &&
+        !string.IsNullOrWhiteSpace(s.JiraApiToken);
 
     private void SaveAndValidateJiraSafe()
     {
@@ -132,19 +142,13 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private static bool HasJiraCreds(SettingsStore s) =>
-        !string.IsNullOrWhiteSpace(s.JiraUrl) &&
-        !string.IsNullOrWhiteSpace(s.JiraEmail) &&
-        !string.IsNullOrWhiteSpace(s.JiraApiToken) &&
-        !string.IsNullOrWhiteSpace(s.JiraProjectKey);
-
     private void SaveJira()
     {
         var settings = SettingsStore.Instance;
         settings.JiraUrl = NormalizeJiraUrl(JiraUrlBox.Text);
         settings.JiraEmail = JiraEmailBox.Text.Trim();
         settings.JiraApiToken = JiraTokenBox.Password.Trim();
-        settings.JiraProjectKey = JiraProjectBox.Text.Trim();
+        settings.JiraProjectKey = (JiraProjectCombo.SelectedItem as JiraProject)?.Key ?? settings.JiraProjectKey;
         settings.Save();
         SettingsStore.RaiseVisibilityChanged();
     }
@@ -162,9 +166,10 @@ public partial class SettingsWindow : Window
     private async Task ValidateJiraAsync()
     {
         var settings = SettingsStore.Instance;
-        if (!HasJiraCreds(settings))
+        if (!HasJiraUrlEmailToken(settings))
         {
             JiraStatusText.Text = "";
+            JiraProjectCombo.ItemsSource = null;
             JiraDevsPanel.Children.Clear();
             JiraDevsLabel.Visibility = Visibility.Collapsed;
             _jiraDevCheckboxes.Clear();
@@ -180,26 +185,51 @@ public partial class SettingsWindow : Window
         {
             JiraStatusText.Text = $"✗ {error}";
             JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
+            JiraProjectCombo.ItemsSource = null;
             JiraDevsPanel.Children.Clear();
             JiraDevsLabel.Visibility = Visibility.Collapsed;
             return;
         }
 
-        JiraStatusText.Text = "✓ Connected — loading users…";
+        JiraStatusText.Text = "✓ Connected — loading projects…";
         JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+
+        var client = new JiraApiClient();
+        var projects = await client.FetchProjectsAsync();
+        PopulateProjectCombo(projects, settings.JiraProjectKey);
+
+        if (string.IsNullOrWhiteSpace(settings.JiraProjectKey))
+        {
+            JiraStatusText.Text = $"✓ Connected — pick a project ({projects.Count} available)";
+            JiraDevsPanel.Children.Clear();
+            JiraDevsLabel.Visibility = Visibility.Collapsed;
+            return;
+        }
 
         try
         {
-            var client = new JiraApiClient();
             var users = await client.FetchAssignableUsersAsync(settings.JiraProjectKey);
             BuildJiraDevsUI(users);
-            JiraStatusText.Text = $"✓ Connected — {users.Count} user(s)";
+            JiraStatusText.Text = $"✓ Connected — {users.Count} user(s) in {settings.JiraProjectKey}";
         }
         catch (Exception ex)
         {
             JiraStatusText.Text = $"✗ Failed to load users: {ex.Message}";
             JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
         }
+    }
+
+    private void PopulateProjectCombo(IReadOnlyList<JiraProject> projects, string currentKey)
+    {
+        _suppressJiraProjectChange = true;
+        try
+        {
+            JiraProjectCombo.ItemsSource = projects;
+            JiraProjectCombo.DisplayMemberPath = "Name";
+            JiraProjectCombo.SelectedItem = projects.FirstOrDefault(p =>
+                string.Equals(p.Key, currentKey, StringComparison.OrdinalIgnoreCase));
+        }
+        finally { _suppressJiraProjectChange = false; }
     }
 
     private void BuildJiraDevsUI(IReadOnlyList<JiraUser> users)

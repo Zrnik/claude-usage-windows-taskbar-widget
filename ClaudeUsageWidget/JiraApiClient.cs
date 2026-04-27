@@ -11,6 +11,12 @@ public sealed class JiraUser
     public string? AvatarUrl { get; set; }
 }
 
+public sealed class JiraProject
+{
+    public string Key { get; set; } = "";
+    public string Name { get; set; } = "";
+}
+
 public sealed class JiraIssueStat
 {
     public string AccountId { get; set; } = "";
@@ -256,6 +262,44 @@ internal sealed class JiraApiClient : IDisposable
         }
         users.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
         return users;
+    }
+
+    public async Task<List<JiraProject>> FetchProjectsAsync(string? url = null, string? email = null, string? token = null)
+    {
+        var settings = SettingsStore.Instance;
+        url ??= settings.JiraUrl;
+        email ??= settings.JiraEmail;
+        token ??= settings.JiraApiToken;
+        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token))
+            return [];
+
+        var result = new List<JiraProject>();
+        int startAt = 0;
+        const int pageSize = 50;
+        while (true)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{TrimSlash(url)}/rest/api/3/project/search?startAt={startAt}&maxResults={pageSize}");
+            AddAuth(request, email, token);
+            var response = await Http.SendAsync(request);
+            if (!response.IsSuccessStatusCode) break;
+            var json = await response.Content.ReadAsStringAsync();
+            var doc = JsonNode.Parse(json);
+            if (doc?["values"] is not JsonArray arr) break;
+            foreach (var p in arr)
+            {
+                if (p == null) continue;
+                var key = p["key"]?.GetValue<string>();
+                var name = p["name"]?.GetValue<string>();
+                if (!string.IsNullOrEmpty(key))
+                    result.Add(new JiraProject { Key = key, Name = name ?? key });
+            }
+            int total = doc["total"]?.GetValue<int>() ?? result.Count;
+            startAt += pageSize;
+            if (startAt >= total || arr.Count == 0) break;
+        }
+        result.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+        return result;
     }
 
     public static async Task<(bool Success, string? Error)> ValidateCredsAsync(string url, string email, string token)

@@ -204,12 +204,12 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Project key" Foreground="#CCCCCC" FontSize="10"
+                        <TextBlock Text="Project" Foreground="#CCCCCC" FontSize="10"
                                    VerticalAlignment="Center" Margin="0,0,6,0" Grid.Column="0"/>
-                        <TextBox x:Name="JiraProjectBox" Grid.Column="1"
-                                 Background="#2A2A2A" Foreground="White"
-                                 BorderBrush="#555555" FontSize="10" Padding="4,2"
-                                 ToolTip="JIRA project key, e.g. PROJ"/>
+                        <ComboBox x:Name="JiraProjectCombo" Grid.Column="1"
+                                  Background="#2A2A2A" Foreground="White"
+                                  BorderBrush="#555555" FontSize="10" Padding="4,2"
+                                  ToolTip="Select JIRA project (loaded after credentials are valid)"/>
                     </Grid>
 
                     <TextBlock x:Name="JiraDevsLabel" Text="Compare with developers" Foreground="White"
