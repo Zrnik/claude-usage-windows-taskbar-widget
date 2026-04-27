@@ -56,7 +56,7 @@
             </Grid>
             <TextBlock x:Name="TogglStatusText" Foreground="#888888" FontSize="9" Margin="0,0,0,6"/>
 
-            <Grid Margin="0,0,0,8">
+            <Grid Margin="0,0,0,4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="80"/>
@@ -67,6 +67,27 @@
                          Background="#2A2A2A" Foreground="White"
                          BorderBrush="#555555" FontSize="10" Padding="4,2"
                          HorizontalContentAlignment="Right"/>
+            </Grid>
+
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="40"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Workday hours (start–end)" Foreground="#CCCCCC" FontSize="10"
+                           VerticalAlignment="Center" Grid.Column="0"/>
+                <TextBox x:Name="WorkdayStartBox" Grid.Column="1"
+                         Background="#2A2A2A" Foreground="White"
+                         BorderBrush="#555555" FontSize="10" Padding="4,2"
+                         HorizontalContentAlignment="Right" ToolTip="0–24, decimals OK (e.g. 8.5)"/>
+                <TextBlock Text="–" Grid.Column="2" Foreground="#CCCCCC" FontSize="10"
+                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <TextBox x:Name="WorkdayEndBox" Grid.Column="3"
+                         Background="#2A2A2A" Foreground="White"
+                         BorderBrush="#555555" FontSize="10" Padding="4,2"
+                         HorizontalContentAlignment="Right" ToolTip="0–24, decimals OK"/>
             </Grid>
 
             <TextBlock x:Name="TogglProjectsLabel" Text="Project rates (Kč/h)" Foreground="White"

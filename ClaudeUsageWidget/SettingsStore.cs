@@ -29,6 +29,10 @@ internal sealed class SettingsStore
     // project_id → CZK/hour
     public Dictionary<long, double> TogglProjectRates { get; private set; } = new();
 
+    // Workday window for fractional "today remaining" calc (24h decimal hours)
+    public double WorkdayStartHour { get; set; } = 9.0;
+    public double WorkdayEndHour { get; set; } = 17.0;
+
     private SettingsStore()
     {
         Load();
@@ -52,6 +56,16 @@ internal sealed class SettingsStore
                 double.TryParse(targetRaw, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out var target))
                 TogglMonthlyTargetCzk = target;
+            var workdayStartRaw = key.GetValue("WorkdayStartHour") as string;
+            if (!string.IsNullOrEmpty(workdayStartRaw) &&
+                double.TryParse(workdayStartRaw, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var ws) && ws is >= 0 and <= 24)
+                WorkdayStartHour = ws;
+            var workdayEndRaw = key.GetValue("WorkdayEndHour") as string;
+            if (!string.IsNullOrEmpty(workdayEndRaw) &&
+                double.TryParse(workdayEndRaw, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var we) && we is >= 0 and <= 24)
+                WorkdayEndHour = we;
         }
         catch { }
 
@@ -104,6 +118,12 @@ internal sealed class SettingsStore
             key.SetValue("TogglApiKey", TogglApiKey, RegistryValueKind.String);
             key.SetValue("TogglMonthlyTargetCzk",
                 TogglMonthlyTargetCzk.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                RegistryValueKind.String);
+            key.SetValue("WorkdayStartHour",
+                WorkdayStartHour.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                RegistryValueKind.String);
+            key.SetValue("WorkdayEndHour",
+                WorkdayEndHour.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 RegistryValueKind.String);
         }
         catch { }

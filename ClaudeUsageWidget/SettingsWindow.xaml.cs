@@ -71,9 +71,13 @@ public partial class SettingsWindow : Window
         TogglTargetBox.Text = settings.TogglMonthlyTargetCzk > 0
             ? settings.TogglMonthlyTargetCzk.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
             : "";
+        WorkdayStartBox.Text = settings.WorkdayStartHour.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        WorkdayEndBox.Text = settings.WorkdayEndHour.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
         TogglApiKeyBox.LostFocus += async (_, _) => await OnTogglKeyChangedAsync();
         TogglTargetBox.LostFocus += (_, _) => SaveSettings();
+        WorkdayStartBox.LostFocus += (_, _) => SaveSettings();
+        WorkdayEndBox.LostFocus += (_, _) => SaveSettings();
 
         if (!string.IsNullOrWhiteSpace(settings.TogglApiKey))
             _ = ValidateAndLoadProjectsAsync(settings.TogglApiKey);
@@ -123,7 +127,7 @@ public partial class SettingsWindow : Window
             var client = new TogglApiClient();
             var projects = await client.FetchProjectsAsync(apiKey);
             BuildTogglProjectsUI(projects);
-            TogglStatusText.Text = $"✓ Connected — {projects.Count} projekt(ů)";
+            TogglStatusText.Text = $"✓ Connected — {projects.Count} project(s)";
         }
         catch (Exception ex)
         {
@@ -283,6 +287,13 @@ public partial class SettingsWindow : Window
         {
             settings.TogglMonthlyTargetCzk = target;
         }
+
+        if (double.TryParse(WorkdayStartBox.Text.Trim(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var ws) && ws is >= 0 and <= 24)
+            settings.WorkdayStartHour = ws;
+        if (double.TryParse(WorkdayEndBox.Text.Trim(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var we) && we is >= 0 and <= 24)
+            settings.WorkdayEndHour = we;
 
         foreach (var (projectId, box) in _togglRateBoxes)
         {

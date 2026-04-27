@@ -284,9 +284,10 @@ public partial class PopupWindow : Window
         var now = DateTimeOffset.Now;
         var monthStart = data.MonthStart;
         var monthEnd = data.MonthResetsAt;
-        int wdTotal = CountWorkingDays(monthStart, monthEnd.AddDays(-1));
-        int wdElapsed = CountWorkingDays(monthStart, now);
-        int wdRemaining = Math.Max(0, wdTotal - wdElapsed);
+        int wdTotal = Pace.CountWorkingDays(monthStart, monthEnd.AddDays(-1));
+        int wdElapsed = Pace.CountWorkingDays(monthStart, now);
+        double wdRemainingFractional = Pace.WorkingDaysRemainingFractional(now, monthEnd);
+        int wdRemainingDisplay = (int)Math.Ceiling(wdRemainingFractional);
 
         double targetPerDay = wdTotal > 0 ? data.TargetCzk / wdTotal : 0;
         double expectedSoFar = targetPerDay * wdElapsed;
@@ -294,7 +295,8 @@ public partial class PopupWindow : Window
         double deltaDays = targetPerDay > 0 ? delta / targetPerDay : 0;
         double remaining = Math.Max(0, data.TargetCzk - data.EarnedCzk);
         double impliedRate = (wdTotal > 0 && data.TargetCzk > 0) ? data.TargetCzk / (wdTotal * 8.0) : 0;
-        double requiredHoursPerDay = (impliedRate > 0 && wdRemaining > 0) ? remaining / (impliedRate * wdRemaining) : 0;
+        double requiredHoursPerDay = (impliedRate > 0 && wdRemainingFractional > 0)
+            ? remaining / (impliedRate * wdRemainingFractional) : 0;
         double pct = data.TargetCzk > 0 ? Math.Min(100.0, data.EarnedCzk / data.TargetCzk * 100.0) : 0;
 
         // Header
@@ -338,7 +340,7 @@ public partial class PopupWindow : Window
 
         // Pace block
         LimitsPanel.Children.Add(MakeLine(
-            $"Plán: {FormatCzk(data.EarnedCzk)} / {FormatCzk(expectedSoFar)} očekáváno",
+            $"Plan: {FormatCzk(data.EarnedCzk)} / {FormatCzk(expectedSoFar)} expected",
             Brushes.LightGray));
 
         var deltaColor = delta >= 0
@@ -348,15 +350,15 @@ public partial class PopupWindow : Window
                 : Color.FromRgb(0xF4, 0x43, 0x36);
         string deltaSign = delta >= 0 ? "+" : "";
         LimitsPanel.Children.Add(MakeLine(
-            $"Delta: {deltaSign}{FormatCzk(delta)} ({deltaSign}{deltaDays:0.#} dne)",
+            $"Delta: {deltaSign}{FormatCzk(delta)} ({deltaSign}{deltaDays:0.#}d)",
             new SolidColorBrush(deltaColor)));
 
-        double perDayNeeded = wdRemaining > 0 ? remaining / wdRemaining : 0;
+        double perDayNeeded = wdRemainingFractional > 0 ? remaining / wdRemainingFractional : 0;
         LimitsPanel.Children.Add(MakeLine(
-            $"Zbývá: {wdRemaining} prac. dnů · {FormatCzk(perDayNeeded)}/den",
+            $"Remaining: {wdRemainingDisplay} work days · {FormatCzk(perDayNeeded)}/day",
             Brushes.LightGray));
 
-        if (requiredHoursPerDay > 0 && wdRemaining > 0)
+        if (requiredHoursPerDay > 0 && wdRemainingFractional > 0)
         {
             var hColor = requiredHoursPerDay <= 8
                 ? Color.FromRgb(0x4C, 0xAF, 0x50)
@@ -365,7 +367,7 @@ public partial class PopupWindow : Window
                     : Color.FromRgb(0xF4, 0x43, 0x36);
             LimitsPanel.Children.Add(new TextBlock
             {
-                Text = $"Ideálně: {requiredHoursPerDay:0.#} h/den (Po–Pá)",
+                Text = $"Need: {requiredHoursPerDay:0.#} h/day (Mon–Fri)",
                 Foreground = new SolidColorBrush(hColor),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
@@ -373,10 +375,11 @@ public partial class PopupWindow : Window
             });
 
             // Weekend-inclusive variant
-            int calDaysRemaining = Math.Max(0, (int)Math.Ceiling((monthEnd - now).TotalDays));
-            if (calDaysRemaining > 0 && impliedRate > 0)
+            double calDaysFractional = Pace.CalendarDaysRemainingFractional(now, monthEnd);
+            int calDaysDisplay = (int)Math.Ceiling(calDaysFractional);
+            if (calDaysFractional > 0 && impliedRate > 0)
             {
-                double reqHoursAllDays = remaining / (impliedRate * calDaysRemaining);
+                double reqHoursAllDays = remaining / (impliedRate * calDaysFractional);
                 var hColor2 = reqHoursAllDays <= 8
                     ? Color.FromRgb(0x4C, 0xAF, 0x50)
                     : reqHoursAllDays <= 10
@@ -384,7 +387,7 @@ public partial class PopupWindow : Window
                         : Color.FromRgb(0xF4, 0x43, 0x36);
                 LimitsPanel.Children.Add(new TextBlock
                 {
-                    Text = $"Ideálně: {reqHoursAllDays:0.#} h/den (vč. víkendů, {calDaysRemaining}d)",
+                    Text = $"Need: {reqHoursAllDays:0.#} h/day (incl. weekends, {calDaysDisplay}d)",
                     Foreground = new SolidColorBrush(hColor2),
                     FontSize = 10,
                     Margin = new Thickness(0, 0, 0, 4)
@@ -395,7 +398,7 @@ public partial class PopupWindow : Window
         {
             LimitsPanel.Children.Add(new TextBlock
             {
-                Text = "✓ Cíl splněn",
+                Text = "✓ Target reached",
                 Foreground = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
@@ -409,7 +412,7 @@ public partial class PopupWindow : Window
             AddSeparator();
             LimitsPanel.Children.Add(new TextBlock
             {
-                Text = "PROJEKTY",
+                Text = "PROJECTS",
                 Foreground = Brushes.Gray,
                 FontSize = 9,
                 Margin = new Thickness(0, 0, 0, 2)
@@ -436,7 +439,7 @@ public partial class PopupWindow : Window
 
                 var rateStr = p.RateCzk > 0
                     ? $"{p.Hours:0.#}h × {p.RateCzk:0} = {FormatCzk(p.Earned)}"
-                    : $"{p.Hours:0.#}h (bez rate)";
+                    : $"{p.Hours:0.#}h (no rate)";
                 var right = new TextBlock
                 {
                     Text = rateStr,
@@ -457,7 +460,7 @@ public partial class PopupWindow : Window
         AddSeparator();
         LimitsPanel.Children.Add(new TextBlock
         {
-            Text = "PRŮBĚH MĚSÍCE",
+            Text = "MONTH PROGRESS",
             Foreground = Brushes.Gray,
             FontSize = 9,
             Margin = new Thickness(0, 0, 0, 2)
@@ -472,21 +475,6 @@ public partial class PopupWindow : Window
         FontSize = 9,
         Margin = new Thickness(0, 1, 0, 1)
     };
-
-    private static int CountWorkingDays(DateTimeOffset from, DateTimeOffset to)
-    {
-        if (to < from) return 0;
-        int count = 0;
-        var d = from.Date;
-        var end = to.Date;
-        while (d <= end)
-        {
-            if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
-                count++;
-            d = d.AddDays(1);
-        }
-        return count;
-    }
 
     private static string FormatCzk(double czk)
     {

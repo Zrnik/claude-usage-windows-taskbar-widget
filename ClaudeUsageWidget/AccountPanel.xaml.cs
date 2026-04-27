@@ -78,7 +78,7 @@ public partial class AccountPanel : UserControl
         {
             Text = data.TargetCzk > 0
                 ? $"{pct:0}%  {FormatCzk(data.EarnedCzk)} / {FormatCzk(data.TargetCzk)}"
-                : $"{FormatCzk(data.EarnedCzk)}  (bez cíle)",
+                : $"{FormatCzk(data.EarnedCzk)}  (no target)",
             Foreground = Brushes.White,
             FontSize = 9,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -96,33 +96,33 @@ public partial class AccountPanel : UserControl
 
         // Compute pace info (same formula as PopupWindow)
         var now = DateTimeOffset.Now;
-        int wdTotal = CountWorkingDays(data.MonthStart, data.MonthResetsAt.AddDays(-1));
-        int wdElapsed = CountWorkingDays(data.MonthStart, now);
-        int wdRemaining = Math.Max(0, wdTotal - wdElapsed);
+        int wdTotal = Pace.CountWorkingDays(data.MonthStart, data.MonthResetsAt.AddDays(-1));
+        int wdRemainingDisplay = (int)Math.Ceiling(Pace.WorkingDaysRemainingFractional(now, data.MonthResetsAt));
+        double wdRemainingFractional = Pace.WorkingDaysRemainingFractional(now, data.MonthResetsAt);
         double remaining = Math.Max(0, data.TargetCzk - data.EarnedCzk);
         double impliedRate = (wdTotal > 0 && data.TargetCzk > 0) ? data.TargetCzk / (wdTotal * 8.0) : 0;
-        double reqHoursPerDay = (impliedRate > 0 && wdRemaining > 0) ? remaining / (impliedRate * wdRemaining) : 0;
+        double reqHoursPerDay = (impliedRate > 0 && wdRemainingFractional > 0) ? remaining / (impliedRate * wdRemainingFractional) : 0;
 
         string line1;
         Color line1Color;
         if (data.TargetCzk <= 0)
         {
-            line1 = "Bez nastaveného cíle";
+            line1 = "No target set";
             line1Color = Color.FromRgb(0x88, 0x88, 0x88);
         }
         else if (remaining <= 0)
         {
-            line1 = "✓ Cíl splněn";
+            line1 = "✓ Target reached";
             line1Color = Color.FromRgb(0x21, 0x96, 0xF3);
         }
-        else if (wdRemaining <= 0)
+        else if (wdRemainingFractional <= 0)
         {
-            line1 = "Měsíc skončil";
+            line1 = "Month over";
             line1Color = Color.FromRgb(0xF4, 0x43, 0x36);
         }
         else
         {
-            line1 = $"Ideálně {reqHoursPerDay:0.#} h/den";
+            line1 = $"Need {reqHoursPerDay:0.#} h/day";
             line1Color = reqHoursPerDay <= 8
                 ? Color.FromRgb(0x4C, 0xAF, 0x50)
                 : reqHoursPerDay <= 10
@@ -143,14 +143,14 @@ public partial class AccountPanel : UserControl
         _togglLine1 = line1Block;
 
         string line2;
-        if (wdRemaining > 0 && remaining > 0 && data.TargetCzk > 0)
+        if (wdRemainingFractional > 0 && remaining > 0 && data.TargetCzk > 0)
         {
-            double perDay = remaining / wdRemaining;
-            line2 = $"Zbývá {wdRemaining}d · {FormatCzk(perDay)}/den";
+            double perDay = remaining / wdRemainingFractional;
+            line2 = $"{wdRemainingDisplay}d left · {FormatCzk(perDay)}/day";
         }
         else
         {
-            line2 = $"{data.HoursWorked:0.#}h odpracováno";
+            line2 = $"{data.HoursWorked:0.#}h worked";
         }
 
         var line2Block = new TextBlock
@@ -164,21 +164,6 @@ public partial class AccountPanel : UserControl
         Grid.SetRow(line2Block, 3);
         BarsPanel.Children.Add(line2Block);
         _togglLine2 = line2Block;
-    }
-
-    private static int CountWorkingDays(DateTimeOffset from, DateTimeOffset to)
-    {
-        if (to < from) return 0;
-        int count = 0;
-        var d = from.Date;
-        var end = to.Date;
-        while (d <= end)
-        {
-            if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
-                count++;
-            d = d.AddDays(1);
-        }
-        return count;
     }
 
     private static string FormatCzk(double czk)
