@@ -427,12 +427,12 @@ public partial class MainWindow : Window
         _refreshTimer.Start();
     }
 
-    private const double ColWidth = 170.0;
+    private const double DefaultColWidth = 170.0;
 
     private void ApplyTileVisibility()
     {
         var settings = SettingsStore.Instance;
-        int visibleCount = 0;
+        double totalWidth = 0;
 
         foreach (var (client, panel, _) in _accounts)
         {
@@ -443,18 +443,26 @@ public partial class MainWindow : Window
                 _ => true
             };
             panel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-            if (show) visibleCount++;
+            double w = client.AccountService switch
+            {
+                ServiceType.Claude => settings.ClaudeWidth,
+                ServiceType.Codex => settings.CodexWidth,
+                _ => DefaultColWidth
+            };
+            panel.SetTileWidth(w);
+            if (show) totalWidth += w;
         }
 
         if (_togglAccount is { } toggl)
         {
             bool togglVisible = settings.ShowToggl && !string.IsNullOrWhiteSpace(settings.TogglApiKey);
             toggl.Panel.Visibility = togglVisible ? Visibility.Visible : Visibility.Collapsed;
-            if (togglVisible) visibleCount++;
+            toggl.Panel.SetTileWidth(settings.TogglWidth);
+            if (togglVisible) totalWidth += settings.TogglWidth;
         }
 
-        // If nothing visible, keep minimum 1 column so the window isn't zero-width
-        Width = ColWidth * Math.Max(1, visibleCount);
+        // If nothing visible, keep minimum 1 default column so the window isn't zero-width
+        Width = totalWidth > 0 ? totalWidth : DefaultColWidth;
         if (IsLoaded) PositionWindow();
     }
 

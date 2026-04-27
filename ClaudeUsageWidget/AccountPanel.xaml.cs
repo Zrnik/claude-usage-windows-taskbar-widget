@@ -16,6 +16,7 @@ public partial class AccountPanel : UserControl
     internal AccountPanel(ServiceType service)
     {
         InitializeComponent();
+        Width = SettingsStore.DefaultTileWidth;
         ServiceIcon.Source = new BitmapImage(new Uri(service switch
         {
             ServiceType.Claude => "pack://application:,,,/Assets/claude-logo.png",
@@ -23,6 +24,23 @@ public partial class AccountPanel : UserControl
             ServiceType.Toggl => "pack://application:,,,/Assets/toggl-logo.png",
             _ => "pack://application:,,,/Assets/claude-logo.png"
         }));
+    }
+
+    /// <summary>Scale factor relative to default width — used to scale font sizes proportionally.</summary>
+    private double FontScale => Math.Max(0.5, Math.Min(3.0, Width / SettingsStore.DefaultTileWidth));
+
+    public void SetTileWidth(double width)
+    {
+        Width = width;
+        // Re-apply scaled font sizes to existing text blocks
+        foreach (var (_, pct, time, _) in _bars)
+        {
+            pct.FontSize = 9 * FontScale;
+            time.FontSize = 9 * FontScale;
+        }
+        if (_togglBarOverlay != null) _togglBarOverlay.FontSize = 9 * FontScale;
+        if (_togglLine1 != null) _togglLine1.FontSize = (_togglLine1.Tag as double? ?? 9) * FontScale;
+        if (_togglLine2 != null) _togglLine2.FontSize = 9 * FontScale;
     }
 
     public void UpdateBars(UsageData data)
@@ -80,7 +98,7 @@ public partial class AccountPanel : UserControl
                 ? $"{pct:0}%  {FormatCzk(data.EarnedCzk)} / {FormatCzk(data.TargetCzk)}"
                 : $"{FormatCzk(data.EarnedCzk)}  (no target)",
             Foreground = Brushes.White,
-            FontSize = 9,
+            FontSize = 9 * FontScale,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -134,7 +152,7 @@ public partial class AccountPanel : UserControl
         {
             Text = line1,
             Foreground = new SolidColorBrush(line1Color),
-            FontSize = 9,
+            FontSize = 9 * FontScale,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -157,7 +175,7 @@ public partial class AccountPanel : UserControl
         {
             Text = line2,
             Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
-            FontSize = 9,
+            FontSize = 9 * FontScale,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -298,7 +316,7 @@ public partial class AccountPanel : UserControl
         }
     }
 
-    private static (ProgressBar Bar, TextBlock PctText, TextBlock TimeText, Grid Container) CreateBarEntry()
+    private (ProgressBar Bar, TextBlock PctText, TextBlock TimeText, Grid Container) CreateBarEntry()
     {
         var bar = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0 };
         bar.Template = CreateBarTemplate();
@@ -314,7 +332,7 @@ public partial class AccountPanel : UserControl
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brushes.White,
-            FontSize = 9
+            FontSize = 9 * FontScale
         };
         Grid.SetColumn(pctText, 0);
 
@@ -323,7 +341,7 @@ public partial class AccountPanel : UserControl
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brushes.White,
-            FontSize = 9
+            FontSize = 9 * FontScale
         };
         Grid.SetColumn(timeText, 2);
 

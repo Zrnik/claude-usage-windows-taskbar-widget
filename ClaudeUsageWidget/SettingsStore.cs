@@ -18,6 +18,11 @@ internal sealed class SettingsStore
     public bool ShowCodex { get; set; } = true;
     public bool ShowToggl { get; set; } = true;
 
+    public const double DefaultTileWidth = 170;
+    public double ClaudeWidth { get; set; } = DefaultTileWidth;
+    public double CodexWidth { get; set; } = DefaultTileWidth;
+    public double TogglWidth { get; set; } = DefaultTileWidth;
+
     public static event Action? VisibilityChanged;
     public static void RaiseVisibilityChanged() => VisibilityChanged?.Invoke();
 
@@ -50,6 +55,9 @@ internal sealed class SettingsStore
             ShowClaude = (int)(key.GetValue("ShowClaude", 1) ?? 1) != 0;
             ShowCodex = (int)(key.GetValue("ShowCodex", 1) ?? 1) != 0;
             ShowToggl = (int)(key.GetValue("ShowToggl", 1) ?? 1) != 0;
+            ClaudeWidth = ParseWidth(key.GetValue("ClaudeWidth"), DefaultTileWidth);
+            CodexWidth = ParseWidth(key.GetValue("CodexWidth"), DefaultTileWidth);
+            TogglWidth = ParseWidth(key.GetValue("TogglWidth"), DefaultTileWidth);
             TogglApiKey = key.GetValue("TogglApiKey") as string ?? "";
             var targetRaw = key.GetValue("TogglMonthlyTargetCzk") as string;
             if (!string.IsNullOrEmpty(targetRaw) &&
@@ -115,6 +123,9 @@ internal sealed class SettingsStore
             key.SetValue("ShowClaude", ShowClaude ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("ShowCodex", ShowCodex ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("ShowToggl", ShowToggl ? 1 : 0, RegistryValueKind.DWord);
+            key.SetValue("ClaudeWidth", ClaudeWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
+            key.SetValue("CodexWidth", CodexWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
+            key.SetValue("TogglWidth", TogglWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
             key.SetValue("TogglApiKey", TogglApiKey, RegistryValueKind.String);
             key.SetValue("TogglMonthlyTargetCzk",
                 TogglMonthlyTargetCzk.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -154,6 +165,15 @@ internal sealed class SettingsStore
     /// <summary>
     /// Returns known labels with display prefix, e.g. ("unified-5h", "Claude / unified-5h")
     /// </summary>
+    private static double ParseWidth(object? raw, double fallback)
+    {
+        if (raw is string s &&
+            double.TryParse(s, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var w) && w >= 50 && w <= 600)
+            return w;
+        return fallback;
+    }
+
     public IReadOnlyList<(string Label, string Display)> GetKnownLabels()
     {
         var result = new Dictionary<string, string>();

@@ -24,6 +24,12 @@ public partial class SettingsWindow : Window
         ShowClaudeCheck.IsChecked = settings.ShowClaude;
         ShowCodexCheck.IsChecked = settings.ShowCodex;
         ShowTogglCheck.IsChecked = settings.ShowToggl;
+        ClaudeWidthBox.Text = settings.ClaudeWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+        CodexWidthBox.Text = settings.CodexWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+        TogglWidthBox.Text = settings.TogglWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+        ClaudeWidthBox.LostFocus += (_, _) => SaveVisibility();
+        CodexWidthBox.LostFocus += (_, _) => SaveVisibility();
+        TogglWidthBox.LostFocus += (_, _) => SaveVisibility();
         NotificationsCheck.IsChecked = settings.NotificationsEnabled;
         NotifyResetCheck.IsChecked = settings.NotifyOnReset;
         StartupCheck.IsChecked = IsStartupEnabled();
@@ -61,8 +67,19 @@ public partial class SettingsWindow : Window
         settings.ShowClaude = ShowClaudeCheck.IsChecked == true;
         settings.ShowCodex = ShowCodexCheck.IsChecked == true;
         settings.ShowToggl = ShowTogglCheck.IsChecked == true;
+        settings.ClaudeWidth = ParseWidthOrDefault(ClaudeWidthBox.Text, settings.ClaudeWidth);
+        settings.CodexWidth = ParseWidthOrDefault(CodexWidthBox.Text, settings.CodexWidth);
+        settings.TogglWidth = ParseWidthOrDefault(TogglWidthBox.Text, settings.TogglWidth);
         settings.Save();
         SettingsStore.RaiseVisibilityChanged();
+    }
+
+    private static double ParseWidthOrDefault(string raw, double fallback)
+    {
+        if (double.TryParse(raw.Trim(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var w) && w >= 50 && w <= 600)
+            return w;
+        return fallback;
     }
 
     private void InitTogglUI(SettingsStore settings)
