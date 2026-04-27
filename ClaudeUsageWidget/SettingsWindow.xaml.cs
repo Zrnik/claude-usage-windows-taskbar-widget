@@ -29,10 +29,10 @@ public partial class SettingsWindow : Window
         CodexWidthBox.Text = settings.CodexWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
         TogglWidthBox.Text = settings.TogglWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
         JiraWidthBox.Text = settings.JiraWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
-        ClaudeWidthBox.LostFocus += (_, _) => SaveVisibility();
-        CodexWidthBox.LostFocus += (_, _) => SaveVisibility();
-        TogglWidthBox.LostFocus += (_, _) => SaveVisibility();
-        JiraWidthBox.LostFocus += (_, _) => SaveVisibility();
+        ClaudeWidthBox.TextChanged += (_, _) => SaveVisibility();
+        CodexWidthBox.TextChanged += (_, _) => SaveVisibility();
+        TogglWidthBox.TextChanged += (_, _) => SaveVisibility();
+        JiraWidthBox.TextChanged += (_, _) => SaveVisibility();
         NotificationsCheck.IsChecked = settings.NotificationsEnabled;
         NotifyResetCheck.IsChecked = settings.NotifyOnReset;
         StartupCheck.IsChecked = IsStartupEnabled();

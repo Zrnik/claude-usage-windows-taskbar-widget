@@ -27,8 +27,8 @@ public partial class AccountPanel : UserControl
         }));
     }
 
-    /// <summary>Scale factor relative to default width — used to scale font sizes proportionally.</summary>
-    private double FontScale => Math.Max(0.5, Math.Min(3.0, Width / SettingsStore.DefaultTileWidth));
+    /// <summary>Scale factor relative to default width — caps at 1.0 (no upscaling), floor at 0.5.</summary>
+    private double FontScale => Math.Min(1.0, Math.Max(0.5, Width / SettingsStore.DefaultTileWidth));
 
     public void SetTileWidth(double width)
     {
