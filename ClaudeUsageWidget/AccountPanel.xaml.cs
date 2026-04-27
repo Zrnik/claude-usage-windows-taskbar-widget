@@ -27,23 +27,28 @@ public partial class AccountPanel : UserControl
         }));
     }
 
-    /// <summary>Scale factor relative to default width — caps at 1.0 (no upscaling), floor at 0.5.</summary>
-    private double FontScale => Math.Min(1.0, Math.Max(0.5, Width / SettingsStore.DefaultTileWidth));
-
     public void SetTileWidth(double width)
     {
         Width = width;
-        // Re-apply scaled font sizes to existing text blocks
-        foreach (var (_, pct, time, _) in _bars)
+        // Text scaling is handled by Viewbox wrappers around each TextBlock
+        // (see WrapInShrinkingViewbox). The viewbox shrinks text only when it would
+        // overflow the available space, so we don't need to recompute anything here.
+    }
+
+    /// <summary>
+    /// Wraps a TextBlock so it renders at its natural FontSize but visually shrinks
+    /// (never grows) when its parent doesn't have enough horizontal room.
+    /// </summary>
+    private static Viewbox WrapInShrinkingViewbox(TextBlock text, HorizontalAlignment align = HorizontalAlignment.Center)
+    {
+        return new Viewbox
         {
-            pct.FontSize = 9 * FontScale;
-            time.FontSize = 9 * FontScale;
-        }
-        if (_togglBarOverlay != null) _togglBarOverlay.FontSize = 9 * FontScale;
-        if (_togglLine1 != null) _togglLine1.FontSize = (_togglLine1.Tag as double? ?? 9) * FontScale;
-        if (_togglLine2 != null) _togglLine2.FontSize = 9 * FontScale;
-        if (_jiraLine1 != null) _jiraLine1.FontSize = 9 * FontScale;
-        if (_jiraLine2 != null) _jiraLine2.FontSize = 9 * FontScale;
+            Stretch = Stretch.Uniform,
+            StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = align,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = text
+        };
     }
 
     public void UpdateBars(UsageData data)
@@ -103,14 +108,12 @@ public partial class AccountPanel : UserControl
                 ? $"{pct:0}%  {FormatCzk(data.EarnedCzk)} / {FormatCzk(data.TargetCzk)}"
                 : $"{FormatCzk(data.EarnedCzk)}  (no target)",
             Foreground = Brushes.White,
-            FontSize = 9 * FontScale,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            FontSize = 9
         };
 
         var barContainer = new Grid();
         barContainer.Children.Add(bar);
-        barContainer.Children.Add(barOverlay);
+        barContainer.Children.Add(WrapInShrinkingViewbox(barOverlay));
         Grid.SetRow(barContainer, 0);
         BarsPanel.Children.Add(barContainer);
         _togglBar = bar;
@@ -157,12 +160,11 @@ public partial class AccountPanel : UserControl
         {
             Text = line1,
             Foreground = new SolidColorBrush(line1Color),
-            FontSize = 9 * FontScale,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            FontSize = 9
         };
-        Grid.SetRow(line1Block, 2);
-        BarsPanel.Children.Add(line1Block);
+        var line1Vb = WrapInShrinkingViewbox(line1Block);
+        Grid.SetRow(line1Vb, 2);
+        BarsPanel.Children.Add(line1Vb);
         _togglLine1 = line1Block;
 
         string line2;
@@ -180,12 +182,11 @@ public partial class AccountPanel : UserControl
         {
             Text = line2,
             Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
-            FontSize = 9 * FontScale,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            FontSize = 9
         };
-        Grid.SetRow(line2Block, 3);
-        BarsPanel.Children.Add(line2Block);
+        var line2Vb = WrapInShrinkingViewbox(line2Block);
+        Grid.SetRow(line2Vb, 3);
+        BarsPanel.Children.Add(line2Vb);
         _togglLine2 = line2Block;
     }
 
@@ -216,14 +217,12 @@ public partial class AccountPanel : UserControl
                 ? $"{myDone}/{myTotal} done · {data.MyDoneStoryPoints:0.#}/{data.MyStoryPoints:0.#} SP"
                 : "No assigned issues",
             Foreground = Brushes.White,
-            FontSize = 9 * FontScale,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            FontSize = 9
         };
 
         var barContainer = new Grid();
         barContainer.Children.Add(bar);
-        barContainer.Children.Add(barOverlay);
+        barContainer.Children.Add(WrapInShrinkingViewbox(barOverlay));
         Grid.SetRow(barContainer, 0);
         BarsPanel.Children.Add(barContainer);
         SetJiraBarColor(GetBarIndicator(bar), pct, myTotal);
@@ -238,12 +237,11 @@ public partial class AccountPanel : UserControl
         {
             Text = line1,
             Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
-            FontSize = 9 * FontScale,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            FontSize = 9
         };
-        Grid.SetRow(line1Block, 2);
-        BarsPanel.Children.Add(line1Block);
+        var jiraLine1Vb = WrapInShrinkingViewbox(line1Block);
+        Grid.SetRow(jiraLine1Vb, 2);
+        BarsPanel.Children.Add(jiraLine1Vb);
         _jiraLine1 = line1Block;
 
         // Line 2: ranking position
@@ -267,12 +265,11 @@ public partial class AccountPanel : UserControl
         {
             Text = line2,
             Foreground = new SolidColorBrush(line2Color),
-            FontSize = 9 * FontScale,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            FontSize = 9
         };
-        Grid.SetRow(line2Block, 3);
-        BarsPanel.Children.Add(line2Block);
+        var jiraLine2Vb = WrapInShrinkingViewbox(line2Block);
+        Grid.SetRow(jiraLine2Vb, 3);
+        BarsPanel.Children.Add(jiraLine2Vb);
         _jiraLine2 = line2Block;
     }
 
@@ -432,24 +429,22 @@ public partial class AccountPanel : UserControl
 
         var pctText = new TextBlock
         {
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brushes.White,
-            FontSize = 9 * FontScale
+            FontSize = 9
         };
-        Grid.SetColumn(pctText, 0);
+        var pctVb = WrapInShrinkingViewbox(pctText, HorizontalAlignment.Right);
+        Grid.SetColumn(pctVb, 0);
 
         var timeText = new TextBlock
         {
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brushes.White,
-            FontSize = 9 * FontScale
+            FontSize = 9
         };
-        Grid.SetColumn(timeText, 2);
+        var timeVb = WrapInShrinkingViewbox(timeText, HorizontalAlignment.Left);
+        Grid.SetColumn(timeVb, 2);
 
-        overlay.Children.Add(pctText);
-        overlay.Children.Add(timeText);
+        overlay.Children.Add(pctVb);
+        overlay.Children.Add(timeVb);
 
         var container = new Grid();
         container.Children.Add(bar);
