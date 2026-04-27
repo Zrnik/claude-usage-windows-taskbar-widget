@@ -54,6 +54,42 @@ internal sealed class TogglApiClient : IDisposable
     private DateTimeOffset _lastFetchTime = DateTimeOffset.MinValue;
     private TogglUsageData? _cachedUsage;
 
+    public TogglApiClient()
+    {
+        // Hydrate from disk so we have a fallback before the first successful API call —
+        // useful when widget starts cold and the very first call hits a rate limit.
+        TryHydrateFromHistory();
+    }
+
+    private void TryHydrateFromHistory()
+    {
+        try
+        {
+            var monthRecords = TogglHistoryStore.Instance.GetCurrentMonth();
+            if (monthRecords.Count == 0) return;
+            var latest = monthRecords[^1];
+            var now = DateTimeOffset.Now;
+            var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, now.Offset);
+            _cachedUsage = new TogglUsageData
+            {
+                HoursWorked = latest.Hours,
+                EarnedCzk = latest.EarnedCzk,
+                TargetCzk = SettingsStore.Instance.TogglMonthlyTargetCzk,
+                MonthStart = monthStart,
+                MonthResetsAt = monthStart.AddMonths(1),
+                Breakdown = [],
+                DailyBreakdown = monthRecords.Select(r => new DayEarnings
+                {
+                    Date = DateTimeOffset.Parse(r.Date, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeLocal),
+                    Hours = 0,                    // intra-day delta unknown from snapshot
+                    EarnedCzk = 0
+                }).ToList()
+            };
+        }
+        catch { }
+    }
+
     public string? LastError { get; private set; }
 
     public async Task<TogglUsageData?> GetUsageAsync(bool forceRefresh = false)

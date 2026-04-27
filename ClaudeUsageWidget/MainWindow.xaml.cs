@@ -318,6 +318,8 @@ public partial class MainWindow : Window
         {
             foreach (var (_, panel, _) in _accounts)
                 panel.AdvanceSpinner();
+            _togglAccount?.Panel.AdvanceSpinner();
+            _jiraAccount?.Panel.AdvanceSpinner();
         };
         _spinnerTimer.Start();
     }

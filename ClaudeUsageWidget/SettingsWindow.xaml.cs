@@ -99,13 +99,37 @@ public partial class SettingsWindow : Window
         JiraTokenBox.Password = settings.JiraApiToken;
         JiraProjectBox.Text = settings.JiraProjectKey;
 
-        JiraUrlBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
-        JiraEmailBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
-        JiraTokenBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
-        JiraProjectBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
+        JiraUrlBox.LostFocus += (_, _) => SaveAndValidateJiraSafe();
+        JiraEmailBox.LostFocus += (_, _) => SaveAndValidateJiraSafe();
+        JiraTokenBox.LostFocus += (_, _) => SaveAndValidateJiraSafe();
+        JiraProjectBox.LostFocus += (_, _) => SaveAndValidateJiraSafe();
 
         if (HasJiraCreds(settings))
-            _ = ValidateJiraAsync();
+            SaveAndValidateJiraSafe();
+    }
+
+    private void SaveAndValidateJiraSafe()
+    {
+        try { SaveJira(); }
+        catch (Exception ex) { JiraStatusText.Text = $"✗ Save failed: {ex.Message}"; return; }
+        _ = SafeRunAsync(() => ValidateJiraAsync(), JiraStatusText);
+    }
+
+    private static async Task SafeRunAsync(Func<Task> action, TextBlock? statusBlock)
+    {
+        try { await action(); }
+        catch (Exception ex)
+        {
+            try
+            {
+                if (statusBlock != null)
+                {
+                    statusBlock.Text = $"✗ {ex.Message}";
+                    statusBlock.Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
+                }
+            }
+            catch { /* UI may be disposed */ }
+        }
     }
 
     private static bool HasJiraCreds(SettingsStore s) =>
@@ -117,11 +141,22 @@ public partial class SettingsWindow : Window
     private void SaveJira()
     {
         var settings = SettingsStore.Instance;
-        settings.JiraUrl = JiraUrlBox.Text.Trim();
+        settings.JiraUrl = NormalizeJiraUrl(JiraUrlBox.Text);
         settings.JiraEmail = JiraEmailBox.Text.Trim();
         settings.JiraApiToken = JiraTokenBox.Password.Trim();
         settings.JiraProjectKey = JiraProjectBox.Text.Trim();
         settings.Save();
+        SettingsStore.RaiseVisibilityChanged();
+    }
+
+    private static string NormalizeJiraUrl(string raw)
+    {
+        var s = raw.Trim().TrimEnd('/');
+        if (string.IsNullOrEmpty(s)) return "";
+        if (!s.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !s.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            s = "https://" + s;
+        return s;
     }
 
     private async Task ValidateJiraAsync()
@@ -219,7 +254,10 @@ public partial class SettingsWindow : Window
         WorkdayStartBox.Text = settings.WorkdayStartHour.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
         WorkdayEndBox.Text = settings.WorkdayEndHour.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
-        TogglApiKeyBox.LostFocus += async (_, _) => await OnTogglKeyChangedAsync();
+        TogglApiKeyBox.LostFocus += (_, _) =>
+        {
+            _ = SafeRunAsync(() => OnTogglKeyChangedAsync(), TogglStatusText);
+        };
         TogglTargetBox.LostFocus += (_, _) => SaveSettings();
         WorkdayStartBox.LostFocus += (_, _) => SaveSettings();
         WorkdayEndBox.LostFocus += (_, _) => SaveSettings();

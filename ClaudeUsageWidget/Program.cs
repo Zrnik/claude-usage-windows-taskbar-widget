@@ -29,12 +29,18 @@ internal class App : Application
         WriteCrashLog("started");
 
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-            WriteCrashLog(e.ExceptionObject?.ToString());
+            WriteCrashLog("[AppDomain] " + e.ExceptionObject?.ToString());
+
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            WriteCrashLog("[UnobservedTask] " + e.Exception?.ToString());
+            e.SetObserved();
+        };
 
         var app = new App();
         app.DispatcherUnhandledException += (_, e) =>
         {
-            WriteCrashLog(e.Exception?.ToString());
+            WriteCrashLog("[Dispatcher] " + e.Exception?.ToString());
             e.Handled = true;
         };
         app.Run();
