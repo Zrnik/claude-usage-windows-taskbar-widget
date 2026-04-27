@@ -132,11 +132,19 @@ internal sealed class JiraApiClient : IDisposable
             Me = me
         };
 
-        // Fetch all issues in the project (current sprint or all open — let's pull active sprint or fallback to non-Done)
-        // JQL: project = X AND (sprint in openSprints() OR resolution = Unresolved)
-        // Using simpler JQL that works without agile: project = X
-        var jql = $"project = \"{Escape(settings.JiraProjectKey)}\"";
-        var issues = await SearchIssuesAsync(settings, jql, _storyPointsFieldId);
+        // Scope to current sprint(s). JQL openSprints() includes any active sprint
+        // the project is participating in. If the project doesn't use Scrum (no Sprint field),
+        // fall back to recent activity so kanban projects still work.
+        var sprintJql = $"project = \"{Escape(settings.JiraProjectKey)}\" AND Sprint in openSprints() ORDER BY updated DESC";
+        var issues = await SearchIssuesAsync(settings, sprintJql, _storyPointsFieldId);
+        if (issues.Count == 0 && LastError == null)
+        {
+            // Possibly a kanban project — fallback to issues touched in the last 30 days
+            var fallback = $"project = \"{Escape(settings.JiraProjectKey)}\" " +
+                           "AND (resolution = Unresolved OR updated >= -30d) " +
+                           "ORDER BY updated DESC";
+            issues = await SearchIssuesAsync(settings, fallback, _storyPointsFieldId);
+        }
 
         // Aggregate per developer
         var perDev = new Dictionary<string, JiraIssueStat>();
@@ -336,14 +344,20 @@ internal sealed class JiraApiClient : IDisposable
             var json = await response.Content.ReadAsStringAsync();
             var arr = JsonNode.Parse(json) as JsonArray;
             if (arr == null) return null;
+            // Try: exact match → contains "story" and "point" (case-insensitive)
+            string? fuzzyMatch = null;
             foreach (var f in arr)
             {
-                var name = f?["name"]?.GetValue<string>();
+                var name = f?["name"]?.GetValue<string>() ?? "";
                 if (string.Equals(name, "Story Points", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(name, "Story point estimate", StringComparison.OrdinalIgnoreCase))
                     return f?["id"]?.GetValue<string>();
+                if (fuzzyMatch == null &&
+                    name.Contains("story", StringComparison.OrdinalIgnoreCase) &&
+                    name.Contains("point", StringComparison.OrdinalIgnoreCase))
+                    fuzzyMatch = f?["id"]?.GetValue<string>();
             }
-            return null;
+            return fuzzyMatch;
         }
         catch { return null; }
     }
@@ -380,6 +394,13 @@ internal sealed class JiraApiClient : IDisposable
                 response.StatusCode == System.Net.HttpStatusCode.Forbidden)
             {
                 LastError = "Invalid JIRA credentials";
+                return result;
+            }
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                // JQL parse error — typical when Sprint field is unavailable on the project (kanban).
+                // Don't throw; let the caller fall back to a different JQL.
+                LastError = null;
                 return result;
             }
             response.EnsureSuccessStatusCode();
