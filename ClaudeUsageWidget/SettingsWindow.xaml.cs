@@ -42,6 +42,7 @@ public partial class SettingsWindow : Window
 
         BuildChartWindowsUI(settings);
         InitTogglUI(settings);
+        InitJiraUI(settings);
 
         ShowClaudeCheck.Checked += (_, _) => SaveVisibility();
         ShowClaudeCheck.Unchecked += (_, _) => SaveVisibility();
@@ -80,6 +81,42 @@ public partial class SettingsWindow : Window
                 System.Globalization.CultureInfo.InvariantCulture, out var w) && w >= 50 && w <= 600)
             return w;
         return fallback;
+    }
+
+    private void InitJiraUI(SettingsStore settings)
+    {
+        JiraUrlBox.Text = settings.JiraUrl;
+        JiraEmailBox.Text = settings.JiraEmail;
+        JiraTokenBox.Password = settings.JiraApiToken;
+        JiraProjectBox.Text = settings.JiraProjectKey;
+
+        JiraUrlBox.LostFocus += (_, _) => SaveJira();
+        JiraEmailBox.LostFocus += (_, _) => SaveJira();
+        JiraTokenBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
+        JiraProjectBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
+
+        if (!string.IsNullOrWhiteSpace(settings.JiraUrl) &&
+            !string.IsNullOrWhiteSpace(settings.JiraApiToken))
+            _ = ValidateJiraAsync();
+    }
+
+    private void SaveJira()
+    {
+        var settings = SettingsStore.Instance;
+        settings.JiraUrl = JiraUrlBox.Text.Trim();
+        settings.JiraEmail = JiraEmailBox.Text.Trim();
+        settings.JiraApiToken = JiraTokenBox.Password.Trim();
+        settings.JiraProjectKey = JiraProjectBox.Text.Trim();
+        settings.Save();
+    }
+
+    private Task ValidateJiraAsync()
+    {
+        // Stub — JIRA API client not yet implemented.
+        // When implemented: validate credentials + load contributors for "developers" picker.
+        JiraStatusText.Text = "JIRA integration not yet implemented";
+        JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
+        return Task.CompletedTask;
     }
 
     private void InitTogglUI(SettingsStore settings)

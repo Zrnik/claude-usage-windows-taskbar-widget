@@ -38,6 +38,14 @@ internal sealed class SettingsStore
     public double WorkdayStartHour { get; set; } = 9.0;
     public double WorkdayEndHour { get; set; } = 17.0;
 
+    // JIRA integration
+    public string JiraUrl { get; set; } = "";
+    public string JiraEmail { get; set; } = "";
+    public string JiraApiToken { get; set; } = "";
+    public string JiraProjectKey { get; set; } = "";
+    // accountId → include in comparison ("developers")
+    public HashSet<string> JiraDeveloperAccountIds { get; private set; } = new();
+
     private SettingsStore()
     {
         Load();
@@ -74,6 +82,14 @@ internal sealed class SettingsStore
                 double.TryParse(workdayEndRaw, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out var we) && we is >= 0 and <= 24)
                 WorkdayEndHour = we;
+            JiraUrl = key.GetValue("JiraUrl") as string ?? "";
+            JiraEmail = key.GetValue("JiraEmail") as string ?? "";
+            JiraApiToken = key.GetValue("JiraApiToken") as string ?? "";
+            JiraProjectKey = key.GetValue("JiraProjectKey") as string ?? "";
+            var devsRaw = key.GetValue("JiraDeveloperAccountIds") as string;
+            if (!string.IsNullOrEmpty(devsRaw))
+                foreach (var id in devsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    JiraDeveloperAccountIds.Add(id.Trim());
         }
         catch { }
 
@@ -136,6 +152,11 @@ internal sealed class SettingsStore
             key.SetValue("WorkdayEndHour",
                 WorkdayEndHour.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 RegistryValueKind.String);
+            key.SetValue("JiraUrl", JiraUrl, RegistryValueKind.String);
+            key.SetValue("JiraEmail", JiraEmail, RegistryValueKind.String);
+            key.SetValue("JiraApiToken", JiraApiToken, RegistryValueKind.String);
+            key.SetValue("JiraProjectKey", JiraProjectKey, RegistryValueKind.String);
+            key.SetValue("JiraDeveloperAccountIds", string.Join(",", JiraDeveloperAccountIds), RegistryValueKind.String);
         }
         catch { }
 
