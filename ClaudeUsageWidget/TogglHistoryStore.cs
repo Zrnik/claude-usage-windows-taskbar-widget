@@ -66,6 +66,36 @@ internal sealed class TogglHistoryStore
             .AsReadOnly();
     }
 
+    /// <summary>
+    /// Persists the full last-successful TogglUsageData (including DailyBreakdown and per-project
+    /// breakdown) so a cold-start hit by a rate limit can still render the tile and chart.
+    /// </summary>
+    public void SaveSnapshot(TogglUsageData usage)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(usage, SerializerOptions);
+            AtomicWrite(GetSnapshotPath(), json);
+        }
+        catch { }
+    }
+
+    public TogglUsageData? LoadSnapshot()
+    {
+        try
+        {
+            var path = GetSnapshotPath();
+            if (!File.Exists(path)) return null;
+            var json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<TogglUsageData>(json);
+        }
+        catch { return null; }
+    }
+
+    private static string GetSnapshotPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "ClaudeUsageWidget", "history", "toggl-snapshot.json");
+
     private List<TogglHistoryRecord> GetOrLoad()
     {
         if (_cache != null) return _cache;

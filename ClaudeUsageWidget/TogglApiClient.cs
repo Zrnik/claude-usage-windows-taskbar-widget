@@ -65,11 +65,45 @@ internal sealed class TogglApiClient : IDisposable
     {
         try
         {
+            // Prefer the full snapshot (includes DailyBreakdown + project Breakdown) over
+            // the cumulative-totals history when available — that way today's intra-day
+            // hours and per-project amounts survive a restart.
+            var snapshot = TogglHistoryStore.Instance.LoadSnapshot();
+            if (snapshot != null && snapshot.MonthStart.Year == DateTimeOffset.Now.Year &&
+                snapshot.MonthStart.Month == DateTimeOffset.Now.Month)
+            {
+                _cachedUsage = snapshot;
+                return;
+            }
+
             var monthRecords = TogglHistoryStore.Instance.GetCurrentMonth();
             if (monthRecords.Count == 0) return;
             var latest = monthRecords[^1];
             var now = DateTimeOffset.Now;
             var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, now.Offset);
+
+            // History stores cumulative month-to-date totals; reconstruct daily deltas
+            // by subtracting consecutive snapshots so the chart and "today" bar render
+            // meaningfully when the API is unreachable (rate limit on cold start).
+            var sortedRecords = monthRecords
+                .OrderBy(r => r.Date, StringComparer.Ordinal)
+                .ToList();
+            var daily = new List<DayEarnings>(sortedRecords.Count);
+            double prevHours = 0, prevEarned = 0;
+            foreach (var r in sortedRecords)
+            {
+                if (!DateTimeOffset.TryParse(r.Date, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeLocal, out var d)) continue;
+                daily.Add(new DayEarnings
+                {
+                    Date = d,
+                    Hours = Math.Max(0, r.Hours - prevHours),
+                    EarnedCzk = Math.Max(0, r.EarnedCzk - prevEarned)
+                });
+                prevHours = r.Hours;
+                prevEarned = r.EarnedCzk;
+            }
+
             _cachedUsage = new TogglUsageData
             {
                 HoursWorked = latest.Hours,
@@ -78,13 +112,7 @@ internal sealed class TogglApiClient : IDisposable
                 MonthStart = monthStart,
                 MonthResetsAt = monthStart.AddMonths(1),
                 Breakdown = [],
-                DailyBreakdown = monthRecords.Select(r => new DayEarnings
-                {
-                    Date = DateTimeOffset.Parse(r.Date, System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.AssumeLocal),
-                    Hours = 0,                    // intra-day delta unknown from snapshot
-                    EarnedCzk = 0
-                }).ToList()
+                DailyBreakdown = daily
             };
         }
         catch { }

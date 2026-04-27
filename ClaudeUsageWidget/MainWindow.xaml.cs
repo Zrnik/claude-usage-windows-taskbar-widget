@@ -273,6 +273,7 @@ public partial class MainWindow : Window
                         _togglAccount = (toggl.Client, toggl.Panel, togglUsage);
                         toggl.Panel.UpdateTogglBars(togglUsage);
                         TogglHistoryStore.Instance.Append(togglUsage);
+                        TogglHistoryStore.Instance.SaveSnapshot(togglUsage);
                         _sharedTogglUsage = togglUsage;
                     }
                     else
@@ -809,6 +810,7 @@ public partial class MainWindow : Window
             _togglAccount = (toggl.Client, toggl.Panel, usage);
             toggl.Panel.UpdateTogglBars(usage);
             TogglHistoryStore.Instance.Append(usage);
+            TogglHistoryStore.Instance.SaveSnapshot(usage);
         }
         else
         {
