@@ -21,6 +21,7 @@
     <Resource Include="Assets\claude-logo.png" />
     <Resource Include="Assets\codex-logo.png" />
     <Resource Include="Assets\toggl-logo.png" />
+    <Resource Include="Assets\jira-logo.png" />
     <Content Include="Assets\claude.ico" />
   </ItemGroup>
 

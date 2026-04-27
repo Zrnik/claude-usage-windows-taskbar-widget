@@ -24,12 +24,15 @@ public partial class SettingsWindow : Window
         ShowClaudeCheck.IsChecked = settings.ShowClaude;
         ShowCodexCheck.IsChecked = settings.ShowCodex;
         ShowTogglCheck.IsChecked = settings.ShowToggl;
+        ShowJiraCheck.IsChecked = settings.ShowJira;
         ClaudeWidthBox.Text = settings.ClaudeWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
         CodexWidthBox.Text = settings.CodexWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
         TogglWidthBox.Text = settings.TogglWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+        JiraWidthBox.Text = settings.JiraWidth.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
         ClaudeWidthBox.LostFocus += (_, _) => SaveVisibility();
         CodexWidthBox.LostFocus += (_, _) => SaveVisibility();
         TogglWidthBox.LostFocus += (_, _) => SaveVisibility();
+        JiraWidthBox.LostFocus += (_, _) => SaveVisibility();
         NotificationsCheck.IsChecked = settings.NotificationsEnabled;
         NotifyResetCheck.IsChecked = settings.NotifyOnReset;
         StartupCheck.IsChecked = IsStartupEnabled();
@@ -50,6 +53,8 @@ public partial class SettingsWindow : Window
         ShowCodexCheck.Unchecked += (_, _) => SaveVisibility();
         ShowTogglCheck.Checked += (_, _) => SaveVisibility();
         ShowTogglCheck.Unchecked += (_, _) => SaveVisibility();
+        ShowJiraCheck.Checked += (_, _) => SaveVisibility();
+        ShowJiraCheck.Unchecked += (_, _) => SaveVisibility();
         NotificationsCheck.Checked += (_, _) => SaveSettings();
         NotificationsCheck.Unchecked += (_, _) => SaveSettings();
         NotifyResetCheck.Checked += (_, _) => SaveSettings();
@@ -68,9 +73,11 @@ public partial class SettingsWindow : Window
         settings.ShowClaude = ShowClaudeCheck.IsChecked == true;
         settings.ShowCodex = ShowCodexCheck.IsChecked == true;
         settings.ShowToggl = ShowTogglCheck.IsChecked == true;
+        settings.ShowJira = ShowJiraCheck.IsChecked == true;
         settings.ClaudeWidth = ParseWidthOrDefault(ClaudeWidthBox.Text, settings.ClaudeWidth);
         settings.CodexWidth = ParseWidthOrDefault(CodexWidthBox.Text, settings.CodexWidth);
         settings.TogglWidth = ParseWidthOrDefault(TogglWidthBox.Text, settings.TogglWidth);
+        settings.JiraWidth = ParseWidthOrDefault(JiraWidthBox.Text, settings.JiraWidth);
         settings.Save();
         SettingsStore.RaiseVisibilityChanged();
     }
@@ -83,6 +90,8 @@ public partial class SettingsWindow : Window
         return fallback;
     }
 
+    private readonly Dictionary<string, CheckBox> _jiraDevCheckboxes = new();
+
     private void InitJiraUI(SettingsStore settings)
     {
         JiraUrlBox.Text = settings.JiraUrl;
@@ -90,15 +99,20 @@ public partial class SettingsWindow : Window
         JiraTokenBox.Password = settings.JiraApiToken;
         JiraProjectBox.Text = settings.JiraProjectKey;
 
-        JiraUrlBox.LostFocus += (_, _) => SaveJira();
-        JiraEmailBox.LostFocus += (_, _) => SaveJira();
+        JiraUrlBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
+        JiraEmailBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
         JiraTokenBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
         JiraProjectBox.LostFocus += async (_, _) => { SaveJira(); await ValidateJiraAsync(); };
 
-        if (!string.IsNullOrWhiteSpace(settings.JiraUrl) &&
-            !string.IsNullOrWhiteSpace(settings.JiraApiToken))
+        if (HasJiraCreds(settings))
             _ = ValidateJiraAsync();
     }
+
+    private static bool HasJiraCreds(SettingsStore s) =>
+        !string.IsNullOrWhiteSpace(s.JiraUrl) &&
+        !string.IsNullOrWhiteSpace(s.JiraEmail) &&
+        !string.IsNullOrWhiteSpace(s.JiraApiToken) &&
+        !string.IsNullOrWhiteSpace(s.JiraProjectKey);
 
     private void SaveJira()
     {
@@ -110,13 +124,90 @@ public partial class SettingsWindow : Window
         settings.Save();
     }
 
-    private Task ValidateJiraAsync()
+    private async Task ValidateJiraAsync()
     {
-        // Stub — JIRA API client not yet implemented.
-        // When implemented: validate credentials + load contributors for "developers" picker.
-        JiraStatusText.Text = "JIRA integration not yet implemented";
+        var settings = SettingsStore.Instance;
+        if (!HasJiraCreds(settings))
+        {
+            JiraStatusText.Text = "";
+            JiraDevsPanel.Children.Clear();
+            JiraDevsLabel.Visibility = Visibility.Collapsed;
+            _jiraDevCheckboxes.Clear();
+            return;
+        }
+
+        JiraStatusText.Text = "Validating…";
         JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
-        return Task.CompletedTask;
+
+        var (ok, error) = await JiraApiClient.ValidateCredsAsync(
+            settings.JiraUrl, settings.JiraEmail, settings.JiraApiToken);
+        if (!ok)
+        {
+            JiraStatusText.Text = $"✗ {error}";
+            JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
+            JiraDevsPanel.Children.Clear();
+            JiraDevsLabel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        JiraStatusText.Text = "✓ Connected — loading users…";
+        JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+
+        try
+        {
+            var client = new JiraApiClient();
+            var users = await client.FetchAssignableUsersAsync(settings.JiraProjectKey);
+            BuildJiraDevsUI(users);
+            JiraStatusText.Text = $"✓ Connected — {users.Count} user(s)";
+        }
+        catch (Exception ex)
+        {
+            JiraStatusText.Text = $"✗ Failed to load users: {ex.Message}";
+            JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
+        }
+    }
+
+    private void BuildJiraDevsUI(IReadOnlyList<JiraUser> users)
+    {
+        JiraDevsPanel.Children.Clear();
+        _jiraDevCheckboxes.Clear();
+
+        if (users.Count == 0)
+        {
+            JiraDevsLabel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        JiraDevsLabel.Visibility = Visibility.Visible;
+        var settings = SettingsStore.Instance;
+
+        foreach (var u in users)
+        {
+            var cb = new CheckBox
+            {
+                Content = u.DisplayName + (u.EmailAddress != null ? $"  ({u.EmailAddress})" : ""),
+                Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                FontSize = 10,
+                Margin = new Thickness(0, 0, 0, 2),
+                IsChecked = settings.JiraDeveloperAccountIds.Contains(u.AccountId),
+                ToolTip = u.AccountId
+            };
+            cb.Checked += (_, _) => SaveJiraDevs();
+            cb.Unchecked += (_, _) => SaveJiraDevs();
+            JiraDevsPanel.Children.Add(cb);
+            _jiraDevCheckboxes[u.AccountId] = cb;
+        }
+    }
+
+    private void SaveJiraDevs()
+    {
+        var settings = SettingsStore.Instance;
+        settings.JiraDeveloperAccountIds.Clear();
+        foreach (var (accountId, cb) in _jiraDevCheckboxes)
+            if (cb.IsChecked == true)
+                settings.JiraDeveloperAccountIds.Add(accountId);
+        settings.Save();
+        SettingsStore.RaiseVisibilityChanged();
     }
 
     private void InitTogglUI(SettingsStore settings)

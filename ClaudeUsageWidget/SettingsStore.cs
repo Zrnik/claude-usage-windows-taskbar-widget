@@ -17,11 +17,13 @@ internal sealed class SettingsStore
     public bool ShowClaude { get; set; } = true;
     public bool ShowCodex { get; set; } = true;
     public bool ShowToggl { get; set; } = true;
+    public bool ShowJira { get; set; } = true;
 
     public const double DefaultTileWidth = 170;
     public double ClaudeWidth { get; set; } = DefaultTileWidth;
     public double CodexWidth { get; set; } = DefaultTileWidth;
     public double TogglWidth { get; set; } = DefaultTileWidth;
+    public double JiraWidth { get; set; } = DefaultTileWidth;
 
     public static event Action? VisibilityChanged;
     public static void RaiseVisibilityChanged() => VisibilityChanged?.Invoke();
@@ -63,9 +65,11 @@ internal sealed class SettingsStore
             ShowClaude = (int)(key.GetValue("ShowClaude", 1) ?? 1) != 0;
             ShowCodex = (int)(key.GetValue("ShowCodex", 1) ?? 1) != 0;
             ShowToggl = (int)(key.GetValue("ShowToggl", 1) ?? 1) != 0;
+            ShowJira = (int)(key.GetValue("ShowJira", 1) ?? 1) != 0;
             ClaudeWidth = ParseWidth(key.GetValue("ClaudeWidth"), DefaultTileWidth);
             CodexWidth = ParseWidth(key.GetValue("CodexWidth"), DefaultTileWidth);
             TogglWidth = ParseWidth(key.GetValue("TogglWidth"), DefaultTileWidth);
+            JiraWidth = ParseWidth(key.GetValue("JiraWidth"), DefaultTileWidth);
             TogglApiKey = key.GetValue("TogglApiKey") as string ?? "";
             var targetRaw = key.GetValue("TogglMonthlyTargetCzk") as string;
             if (!string.IsNullOrEmpty(targetRaw) &&
@@ -139,9 +143,11 @@ internal sealed class SettingsStore
             key.SetValue("ShowClaude", ShowClaude ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("ShowCodex", ShowCodex ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("ShowToggl", ShowToggl ? 1 : 0, RegistryValueKind.DWord);
+            key.SetValue("ShowJira", ShowJira ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("ClaudeWidth", ClaudeWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
             key.SetValue("CodexWidth", CodexWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
             key.SetValue("TogglWidth", TogglWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
+            key.SetValue("JiraWidth", JiraWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), RegistryValueKind.String);
             key.SetValue("TogglApiKey", TogglApiKey, RegistryValueKind.String);
             key.SetValue("TogglMonthlyTargetCzk",
                 TogglMonthlyTargetCzk.ToString(System.Globalization.CultureInfo.InvariantCulture),

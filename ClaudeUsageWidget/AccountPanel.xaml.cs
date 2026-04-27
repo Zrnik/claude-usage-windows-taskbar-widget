@@ -22,6 +22,7 @@ public partial class AccountPanel : UserControl
             ServiceType.Claude => "pack://application:,,,/Assets/claude-logo.png",
             ServiceType.Codex => "pack://application:,,,/Assets/codex-logo.png",
             ServiceType.Toggl => "pack://application:,,,/Assets/toggl-logo.png",
+            ServiceType.Jira => "pack://application:,,,/Assets/jira-logo.png",
             _ => "pack://application:,,,/Assets/claude-logo.png"
         }));
     }
@@ -41,6 +42,8 @@ public partial class AccountPanel : UserControl
         if (_togglBarOverlay != null) _togglBarOverlay.FontSize = 9 * FontScale;
         if (_togglLine1 != null) _togglLine1.FontSize = (_togglLine1.Tag as double? ?? 9) * FontScale;
         if (_togglLine2 != null) _togglLine2.FontSize = 9 * FontScale;
+        if (_jiraLine1 != null) _jiraLine1.FontSize = 9 * FontScale;
+        if (_jiraLine2 != null) _jiraLine2.FontSize = 9 * FontScale;
     }
 
     public void UpdateBars(UsageData data)
@@ -70,6 +73,8 @@ public partial class AccountPanel : UserControl
     private TextBlock? _togglLine2;
     private ProgressBar? _togglBar;
     private TextBlock? _togglBarOverlay;
+    private TextBlock? _jiraLine1;
+    private TextBlock? _jiraLine2;
 
     public void UpdateTogglBars(TogglUsageData data)
     {
@@ -182,6 +187,104 @@ public partial class AccountPanel : UserControl
         Grid.SetRow(line2Block, 3);
         BarsPanel.Children.Add(line2Block);
         _togglLine2 = line2Block;
+    }
+
+    public void UpdateJiraBars(JiraUsageData data)
+    {
+        _isLoading = false;
+        _bars.Clear();
+        BarsPanel.RowDefinitions.Clear();
+        BarsPanel.Children.Clear();
+
+        // Layout: bar | spacer | line1 | line2
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Pixel) });
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+        // Compute "my" stats for the progress bar
+        int myTotal = data.MyByCategory.Values.Sum();
+        int myDone = data.MyByCategory.TryGetValue("done", out var d) ? d : 0;
+        double pct = myTotal > 0 ? Math.Min(100.0, myDone * 100.0 / myTotal) : 0;
+
+        var bar = new ProgressBar { Minimum = 0, Maximum = 100, Value = pct };
+        bar.Template = CreateBarTemplate();
+
+        var barOverlay = new TextBlock
+        {
+            Text = myTotal > 0
+                ? $"{myDone}/{myTotal} done · {data.MyDoneStoryPoints:0.#}/{data.MyStoryPoints:0.#} SP"
+                : "No assigned issues",
+            Foreground = Brushes.White,
+            FontSize = 9 * FontScale,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        var barContainer = new Grid();
+        barContainer.Children.Add(bar);
+        barContainer.Children.Add(barOverlay);
+        Grid.SetRow(barContainer, 0);
+        BarsPanel.Children.Add(barContainer);
+        SetJiraBarColor(GetBarIndicator(bar), pct, myTotal);
+
+        // Line 1: status breakdown
+        int todo = data.MyByCategory.TryGetValue("new", out var n) ? n : 0;
+        int inprog = data.MyByCategory.TryGetValue("indeterminate", out var i) ? i : 0;
+        string line1 = myTotal > 0
+            ? $"{todo} todo · {inprog} doing · {myDone} done"
+            : $"Project: {data.ProjectKey}";
+        var line1Block = new TextBlock
+        {
+            Text = line1,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+            FontSize = 9 * FontScale,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetRow(line1Block, 2);
+        BarsPanel.Children.Add(line1Block);
+        _jiraLine1 = line1Block;
+
+        // Line 2: ranking position
+        string line2;
+        Color line2Color;
+        if (data.MyRank > 0 && data.DeveloperRanking.Count > 1)
+        {
+            line2 = $"#{data.MyRank} of {data.DeveloperRanking.Count}";
+            line2Color = data.MyRank == 1
+                ? Color.FromRgb(0xFF, 0xC1, 0x07)            // gold
+                : data.MyRank <= data.DeveloperRanking.Count / 2
+                    ? Color.FromRgb(0x4C, 0xAF, 0x50)        // top half: green
+                    : Color.FromRgb(0xFF, 0x98, 0x00);       // bottom half: orange
+        }
+        else
+        {
+            line2 = data.Me?.DisplayName ?? "—";
+            line2Color = Color.FromRgb(0x99, 0x99, 0x99);
+        }
+        var line2Block = new TextBlock
+        {
+            Text = line2,
+            Foreground = new SolidColorBrush(line2Color),
+            FontSize = 9 * FontScale,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetRow(line2Block, 3);
+        BarsPanel.Children.Add(line2Block);
+        _jiraLine2 = line2Block;
+    }
+
+    private static void SetJiraBarColor(Border? indicator, double pct, int total)
+    {
+        if (indicator == null) return;
+        string color;
+        if (total <= 0) color = "#888888";
+        else if (pct >= 100) color = "#2196F3";          // blue — done
+        else if (pct >= 50) color = "#4CAF50";           // green — making progress
+        else color = "#FF9800";                          // orange — early
+        indicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
     }
 
     private static string FormatCzk(double czk)

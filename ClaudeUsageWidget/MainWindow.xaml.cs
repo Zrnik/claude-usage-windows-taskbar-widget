@@ -105,6 +105,8 @@ public partial class MainWindow : Window
 
     private readonly List<(ClaudeApiClient Client, AccountPanel Panel, UsageData? LastUsage)> _accounts = [];
     private (TogglApiClient Client, AccountPanel Panel, TogglUsageData? LastUsage)? _togglAccount;
+    private (JiraApiClient Client, AccountPanel Panel, JiraUsageData? LastUsage)? _jiraAccount;
+    private static JiraUsageData? _sharedJiraUsage;
     private int _refreshTick;
     private readonly UsageHistoryStore _historyStore = UsageHistoryStore.Instance;
     private readonly IntPtr _taskbarHwnd;
@@ -198,6 +200,17 @@ public partial class MainWindow : Window
         AccountsPanel.Children.Add(togglPanelInstance);
         _togglAccount = (togglInstance, togglPanelInstance, null);
 
+        var jiraInstance = new JiraApiClient();
+        var jiraPanelInstance = new AccountPanel(ServiceType.Jira);
+        jiraPanelInstance.MouseEnter += (_, _) => ShowPopupForJira();
+        jiraPanelInstance.MouseLeave += (_, _) => HidePopup();
+        jiraPanelInstance.MouseLeftButtonDown += (_, args) =>
+        {
+            if (args.ClickCount == 2) _ = ForceRefreshJira();
+        };
+        AccountsPanel.Children.Add(jiraPanelInstance);
+        _jiraAccount = (jiraInstance, jiraPanelInstance, null);
+
 #if DEBUG
         AccountsPanel.Background = new SolidColorBrush(Color.FromArgb(0x40, 0x80, 0x00, 0xFF));
 #endif
@@ -224,6 +237,8 @@ public partial class MainWindow : Window
                         panel.ShowLoadingState();
                 if (_togglAccount?.Panel.Visibility == Visibility.Visible)
                     _togglAccount?.Panel.ShowLoadingState();
+                if (_jiraAccount?.Panel.Visibility == Visibility.Visible)
+                    _jiraAccount?.Panel.ShowLoadingState();
 
                 StartSpinnerTimer();
 
@@ -261,6 +276,21 @@ public partial class MainWindow : Window
                     else
                     {
                         toggl.Panel.ShowErrorState(toggl.Client.LastError);
+                    }
+                }
+
+                if (_jiraAccount is { } jira && jira.Panel.Visibility == Visibility.Visible)
+                {
+                    var jiraUsage = await jira.Client.GetUsageAsync();
+                    if (jiraUsage != null)
+                    {
+                        _jiraAccount = (jira.Client, jira.Panel, jiraUsage);
+                        jira.Panel.UpdateJiraBars(jiraUsage);
+                        _sharedJiraUsage = jiraUsage;
+                    }
+                    else
+                    {
+                        jira.Panel.ShowErrorState(jira.Client.LastError);
                     }
                 }
 
@@ -422,6 +452,22 @@ public partial class MainWindow : Window
                 }
             }
 
+            if (_refreshTick % 5 == 0 && _jiraAccount is { } jira &&
+                jira.Panel.Visibility == Visibility.Visible)
+            {
+                var jiraUsage = await jira.Client.GetUsageAsync();
+                if (jiraUsage != null)
+                {
+                    _jiraAccount = (jira.Client, jira.Panel, jiraUsage);
+                    jira.Panel.UpdateJiraBars(jiraUsage);
+                    _sharedJiraUsage = jiraUsage;
+                }
+                else
+                {
+                    jira.Panel.ShowErrorState(jira.Client.LastError);
+                }
+            }
+
             UsageUpdated?.Invoke();
         };
         _refreshTimer.Start();
@@ -461,6 +507,18 @@ public partial class MainWindow : Window
             if (togglVisible) totalWidth += settings.TogglWidth;
         }
 
+        if (_jiraAccount is { } jira)
+        {
+            bool jiraConfigured = !string.IsNullOrWhiteSpace(settings.JiraUrl) &&
+                                  !string.IsNullOrWhiteSpace(settings.JiraApiToken) &&
+                                  !string.IsNullOrWhiteSpace(settings.JiraEmail) &&
+                                  !string.IsNullOrWhiteSpace(settings.JiraProjectKey);
+            bool jiraVisible = settings.ShowJira && jiraConfigured;
+            jira.Panel.Visibility = jiraVisible ? Visibility.Visible : Visibility.Collapsed;
+            jira.Panel.SetTileWidth(settings.JiraWidth);
+            if (jiraVisible) totalWidth += settings.JiraWidth;
+        }
+
         // If nothing visible, keep minimum 1 default column so the window isn't zero-width
         Width = totalWidth > 0 ? totalWidth : DefaultColWidth;
         if (IsLoaded) PositionWindow();
@@ -471,14 +529,20 @@ public partial class MainWindow : Window
         Dispatcher.Invoke(() =>
         {
             bool togglWasVisible = _togglAccount?.Panel.Visibility == Visibility.Visible;
+            bool jiraWasVisible = _jiraAccount?.Panel.Visibility == Visibility.Visible;
             ApplyTileVisibility();
             bool togglNowVisible = _togglAccount?.Panel.Visibility == Visibility.Visible;
+            bool jiraNowVisible = _jiraAccount?.Panel.Visibility == Visibility.Visible;
 
-            // If Toggl just became visible and we're primary, trigger fresh fetch + loading state
             if (_isPrimary && !togglWasVisible && togglNowVisible && _togglAccount is { } toggl)
             {
                 toggl.Panel.ShowLoadingState();
                 _ = ForceRefreshToggl();
+            }
+            if (_isPrimary && !jiraWasVisible && jiraNowVisible && _jiraAccount is { } jira)
+            {
+                jira.Panel.ShowLoadingState();
+                _ = ForceRefreshJira();
             }
         });
     }
@@ -501,6 +565,11 @@ public partial class MainWindow : Window
             {
                 _togglAccount = (toggl.Client, toggl.Panel, _sharedTogglUsage);
                 toggl.Panel.UpdateTogglBars(_sharedTogglUsage);
+            }
+            if (_jiraAccount is { } jira && _sharedJiraUsage != null)
+            {
+                _jiraAccount = (jira.Client, jira.Panel, _sharedJiraUsage);
+                jira.Panel.UpdateJiraBars(_sharedJiraUsage);
             }
         });
     }
@@ -686,6 +755,40 @@ public partial class MainWindow : Window
         }
         _popup.UpdateAndShowToggl(toggl.LastUsage, toggl.Client.LastError,
             Left + GetPanelLeftOffset(toggl.Panel), Top);
+    }
+
+    private void ShowPopupForJira()
+    {
+        if (_jiraAccount is not { } jira) return;
+        if (jira.Panel.Visibility != Visibility.Visible) return;
+        if (jira.LastUsage == null && jira.Client.LastError == null) return;
+        if (_popup == null)
+        {
+            _popup = new PopupWindow();
+            _popup.Owner = this;
+            _popup.MouseLeave += (_, _) => HidePopup();
+        }
+        _popup.UpdateAndShowJira(jira.LastUsage, jira.Client.LastError,
+            Left + GetPanelLeftOffset(jira.Panel), Top);
+    }
+
+    private async Task ForceRefreshJira()
+    {
+        if (!_isPrimary || _jiraAccount is not { } jira) return;
+        jira.Panel.ShowLoadingState();
+        StartSpinnerTimer();
+        var usage = await jira.Client.GetUsageAsync(forceRefresh: true);
+        StopSpinner();
+        if (usage != null)
+        {
+            _jiraAccount = (jira.Client, jira.Panel, usage);
+            jira.Panel.UpdateJiraBars(usage);
+            _sharedJiraUsage = usage;
+        }
+        else
+        {
+            jira.Panel.ShowErrorState(jira.Client.LastError);
+        }
     }
 
     private async Task ForceRefreshToggl()

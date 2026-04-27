@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace ClaudeUsageWidgetProvider;
 
-internal enum ServiceType { Claude, Codex, Toggl }
+internal enum ServiceType { Claude, Codex, Toggl, Jira }
 
 internal sealed record AccountInfo(
     ServiceType Service,

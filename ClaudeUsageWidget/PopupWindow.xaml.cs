@@ -222,6 +222,210 @@ public partial class PopupWindow : Window
         Show();
     }
 
+    public void UpdateAndShowJira(JiraUsageData? data, string? errorMessage,
+        double widgetLeft, double widgetTop)
+    {
+        LimitsPanel.Children.Clear();
+
+        if (data != null)
+            BuildJiraPopup(data);
+
+        if (errorMessage != null)
+        {
+            if (LimitsPanel.Children.Count > 0)
+                AddSeparator();
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = errorMessage,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36)),
+                FontSize = 9,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 260
+            });
+        }
+
+        AddSeparator();
+        var footerGrid = new Grid();
+        footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        footerGrid.Children.Add(new TextBlock
+        {
+            Text = "JIRA",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+            FontSize = 8
+        });
+        var versionBlock = new TextBlock
+        {
+            Text = $"v{Updater.CurrentVersion}",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+            FontSize = 8,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        Grid.SetColumn(versionBlock, 1);
+        footerGrid.Children.Add(versionBlock);
+        LimitsPanel.Children.Add(footerGrid);
+
+        UpdateLayout();
+        Left = widgetLeft;
+        Top = widgetTop - ActualHeight - 4;
+
+        var helper = new WindowInteropHelper(this);
+        helper.EnsureHandle();
+        SetWindowPos(helper.Handle, HwndTopmost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        Show();
+    }
+
+    private void BuildJiraPopup(JiraUsageData data)
+    {
+        // Header
+        LimitsPanel.Children.Add(new TextBlock
+        {
+            Text = $"JIRA · {data.ProjectKey}",
+            Foreground = Brushes.Gray,
+            FontSize = 9,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+
+        // My status breakdown
+        int myTotal = data.MyByCategory.Values.Sum();
+        int todo = data.MyByCategory.TryGetValue("new", out var n) ? n : 0;
+        int inprog = data.MyByCategory.TryGetValue("indeterminate", out var i) ? i : 0;
+        int done = data.MyByCategory.TryGetValue("done", out var d) ? d : 0;
+
+        if (myTotal > 0)
+        {
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = "MY ISSUES",
+                Foreground = Brushes.Gray,
+                FontSize = 9,
+                Margin = new Thickness(0, 0, 0, 2)
+            });
+            LimitsPanel.Children.Add(MakeJiraRow("To Do", todo, Color.FromRgb(0x99, 0x99, 0x99)));
+            LimitsPanel.Children.Add(MakeJiraRow("In Progress", inprog, Color.FromRgb(0xFF, 0x98, 0x00)));
+            LimitsPanel.Children.Add(MakeJiraRow("Done", done, Color.FromRgb(0x4C, 0xAF, 0x50)));
+
+            // Detailed status breakdown if there are non-standard statuses
+            if (data.MyByStatus.Count > 0)
+            {
+                LimitsPanel.Children.Add(new TextBlock
+                {
+                    Text = "BY STATUS",
+                    Foreground = Brushes.Gray,
+                    FontSize = 9,
+                    Margin = new Thickness(0, 6, 0, 2)
+                });
+                foreach (var kv in data.MyByStatus.OrderByDescending(p => p.Value))
+                    LimitsPanel.Children.Add(MakeJiraRow(kv.Key, kv.Value,
+                        Color.FromRgb(0xCC, 0xCC, 0xCC)));
+            }
+
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = $"Story points: {data.MyDoneStoryPoints:0.#} done / {data.MyStoryPoints:0.#} total",
+                Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                FontSize = 9,
+                Margin = new Thickness(0, 6, 0, 2)
+            });
+        }
+        else
+        {
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = "No issues assigned to you in this project",
+                Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+                FontSize = 9,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+        }
+
+        // Developer ranking
+        if (data.DeveloperRanking.Count > 1)
+        {
+            AddSeparator();
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = "RANKING (by SP done)",
+                Foreground = Brushes.Gray,
+                FontSize = 9,
+                Margin = new Thickness(0, 0, 0, 2)
+            });
+
+            int rank = 1;
+            foreach (var dev in data.DeveloperRanking)
+            {
+                bool isMe = data.Me != null && dev.AccountId == data.Me.AccountId;
+                var row = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var rankColor = isMe ? Color.FromRgb(0xFF, 0xC1, 0x07) : Color.FromRgb(0x88, 0x88, 0x88);
+                var rankBlock = new TextBlock
+                {
+                    Text = $"#{rank}",
+                    Foreground = new SolidColorBrush(rankColor),
+                    FontSize = 9,
+                    FontWeight = isMe ? FontWeights.SemiBold : FontWeights.Normal
+                };
+                Grid.SetColumn(rankBlock, 0);
+
+                var nameBlock = new TextBlock
+                {
+                    Text = isMe ? dev.DisplayName + " (you)" : dev.DisplayName,
+                    Foreground = new SolidColorBrush(isMe ? Color.FromRgb(0xFF, 0xFF, 0xFF) : Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                    FontSize = 9,
+                    FontWeight = isMe ? FontWeights.SemiBold : FontWeights.Normal,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxWidth = 170
+                };
+                Grid.SetColumn(nameBlock, 1);
+
+                var statBlock = new TextBlock
+                {
+                    Text = $"{dev.DoneStoryPoints:0.#} SP · {dev.DoneIssues}/{dev.TotalIssues}",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                    FontSize = 9
+                };
+                Grid.SetColumn(statBlock, 2);
+
+                row.Children.Add(rankBlock);
+                row.Children.Add(nameBlock);
+                row.Children.Add(statBlock);
+                LimitsPanel.Children.Add(row);
+                rank++;
+            }
+        }
+    }
+
+    private static UIElement MakeJiraRow(string label, int count, Color labelColor)
+    {
+        var row = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var labelBlock = new TextBlock
+        {
+            Text = label,
+            Foreground = new SolidColorBrush(labelColor),
+            FontSize = 9
+        };
+        Grid.SetColumn(labelBlock, 0);
+
+        var countBlock = new TextBlock
+        {
+            Text = count.ToString(),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)),
+            FontSize = 9,
+            FontWeight = FontWeights.SemiBold
+        };
+        Grid.SetColumn(countBlock, 1);
+
+        row.Children.Add(labelBlock);
+        row.Children.Add(countBlock);
+        return row;
+    }
+
     public void UpdateAndShowToggl(TogglUsageData? data, string? errorMessage,
         double widgetLeft, double widgetTop)
     {
