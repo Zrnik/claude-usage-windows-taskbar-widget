@@ -198,6 +198,7 @@ public partial class SettingsWindow : Window
         JiraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
 
         var client = new JiraApiClient();
+        var me = await client.FetchMyselfAsync(settings.JiraUrl, settings.JiraEmail, settings.JiraApiToken);
         var projects = await client.FetchProjectsAsync();
         PopulateProjectCombo(projects, settings.JiraProjectKey);
 
@@ -212,8 +213,12 @@ public partial class SettingsWindow : Window
         try
         {
             var users = await client.FetchAssignableUsersAsync(settings.JiraProjectKey);
-            BuildJiraDevsUI(users);
-            JiraStatusText.Text = $"✓ Connected — {users.Count} user(s) in {settings.JiraProjectKey}";
+            // Exclude current user from "compare with developers" — comparing yourself to yourself is pointless
+            var others = me != null
+                ? users.Where(u => u.AccountId != me.AccountId).ToList()
+                : users.ToList();
+            BuildJiraDevsUI(others);
+            JiraStatusText.Text = $"✓ Connected — {others.Count} other user(s) in {settings.JiraProjectKey}";
         }
         catch (Exception ex)
         {
@@ -227,8 +232,8 @@ public partial class SettingsWindow : Window
         _suppressJiraProjectChange = true;
         try
         {
+            // ItemTemplate (in XAML) handles display — don't also set DisplayMemberPath (XAML conflict)
             JiraProjectCombo.ItemsSource = projects;
-            JiraProjectCombo.DisplayMemberPath = "Display";
             JiraProjectCombo.SelectedItem = projects.FirstOrDefault(p =>
                 string.Equals(p.Key, currentKey, StringComparison.OrdinalIgnoreCase));
         }

@@ -361,15 +361,19 @@ internal sealed class JiraApiClient : IDisposable
 
     private async Task<List<JiraIssue>> SearchIssuesAsync(SettingsStore settings, string jql, string? storyPointsField)
     {
+        // The legacy /rest/api/3/search endpoint was removed by Atlassian (returns 410 Gone).
+        // Use the new /rest/api/3/search/jql endpoint which is cursor-paged via nextPageToken.
         var result = new List<JiraIssue>();
-        int startAt = 0;
+        string? nextPageToken = null;
         const int pageSize = 100;
         var fieldList = "summary,status,assignee,updated" + (storyPointsField != null ? $",{storyPointsField}" : "");
         while (true)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get,
-                $"{TrimSlash(settings.JiraUrl)}/rest/api/3/search?jql={Uri.EscapeDataString(jql)}" +
-                $"&fields={Uri.EscapeDataString(fieldList)}&startAt={startAt}&maxResults={pageSize}");
+            var url = $"{TrimSlash(settings.JiraUrl)}/rest/api/3/search/jql?jql={Uri.EscapeDataString(jql)}" +
+                      $"&fields={Uri.EscapeDataString(fieldList)}&maxResults={pageSize}";
+            if (nextPageToken != null)
+                url += $"&nextPageToken={Uri.EscapeDataString(nextPageToken)}";
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
             AddAuth(request, settings.JiraEmail, settings.JiraApiToken);
             var response = await Http.SendAsync(request);
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
@@ -408,9 +412,9 @@ internal sealed class JiraApiClient : IDisposable
                     updated = updTs;
                 result.Add(new JiraIssue(key, summary, statusName, statusCategory, accountId, displayName, sp, updated));
             }
-            int total = doc["total"]?.GetValue<int>() ?? result.Count;
-            startAt += pageSize;
-            if (startAt >= total || issuesArr.Count == 0) break;
+            bool isLast = doc["isLast"]?.GetValue<bool>() ?? true;
+            nextPageToken = doc["nextPageToken"]?.GetValue<string>();
+            if (isLast || string.IsNullOrEmpty(nextPageToken) || issuesArr.Count == 0) break;
         }
         return result;
     }
