@@ -286,6 +286,7 @@ public partial class MainWindow : Window
                     {
                         _jiraAccount = (jira.Client, jira.Panel, jiraUsage);
                         jira.Panel.UpdateJiraBars(jiraUsage);
+                        JiraHistoryStore.Instance.Append(jiraUsage);
                         _sharedJiraUsage = jiraUsage;
                     }
                     else
@@ -783,6 +784,7 @@ public partial class MainWindow : Window
         {
             _jiraAccount = (jira.Client, jira.Panel, usage);
             jira.Panel.UpdateJiraBars(usage);
+            JiraHistoryStore.Instance.Append(usage);
             _sharedJiraUsage = usage;
         }
         else

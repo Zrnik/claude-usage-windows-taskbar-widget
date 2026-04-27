@@ -339,6 +339,88 @@ public partial class PopupWindow : Window
             });
         }
 
+        // Active tasks
+        if (data.MyActiveIssues.Count > 0)
+        {
+            AddSeparator();
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = $"ACTIVE TASKS ({data.MyActiveIssues.Count})",
+                Foreground = Brushes.Gray,
+                FontSize = 9,
+                Margin = new Thickness(0, 0, 0, 2)
+            });
+            // Show up to 10 most recent active issues
+            int shown = 0;
+            foreach (var issue in data.MyActiveIssues)
+            {
+                if (shown >= 10) break;
+                var row = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var statusColor = issue.StatusCategory switch
+                {
+                    "indeterminate" => Color.FromRgb(0xFF, 0x98, 0x00),
+                    "new" => Color.FromRgb(0x88, 0x88, 0x88),
+                    _ => Color.FromRgb(0xCC, 0xCC, 0xCC)
+                };
+                var keyBlock = new TextBlock
+                {
+                    Text = issue.Key,
+                    Foreground = new SolidColorBrush(statusColor),
+                    FontSize = 9,
+                    FontWeight = FontWeights.SemiBold,
+                    Margin = new Thickness(0, 0, 6, 0)
+                };
+                Grid.SetColumn(keyBlock, 0);
+
+                var summaryBlock = new TextBlock
+                {
+                    Text = issue.Summary,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                    FontSize = 9,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxWidth = 160
+                };
+                Grid.SetColumn(summaryBlock, 1);
+
+                var statusBlock = new TextBlock
+                {
+                    Text = issue.StoryPoints > 0 ? $"{issue.StatusName} · {issue.StoryPoints:0.#} SP" : issue.StatusName,
+                    Foreground = new SolidColorBrush(statusColor),
+                    FontSize = 8,
+                    Margin = new Thickness(6, 0, 0, 0)
+                };
+                Grid.SetColumn(statusBlock, 2);
+
+                row.Children.Add(keyBlock);
+                row.Children.Add(summaryBlock);
+                row.Children.Add(statusBlock);
+                LimitsPanel.Children.Add(row);
+                shown++;
+            }
+            if (data.MyActiveIssues.Count > 10)
+            {
+                LimitsPanel.Children.Add(new TextBlock
+                {
+                    Text = $"+ {data.MyActiveIssues.Count - 10} more",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)),
+                    FontSize = 8,
+                    FontStyle = FontStyles.Italic
+                });
+            }
+        }
+
+        // Trend charts (require history)
+        var history = JiraHistoryStore.Instance.GetLastDays(30);
+        if (history.Count >= 2 && data.Me != null)
+        {
+            AddSeparator();
+            BuildJiraTrendsBlock(history, data);
+        }
+
         // Developer ranking
         if (data.DeveloperRanking.Count > 1)
         {
@@ -396,6 +478,207 @@ public partial class PopupWindow : Window
                 rank++;
             }
         }
+    }
+
+    private void BuildJiraTrendsBlock(IReadOnlyList<JiraHistoryRecord> history, JiraUsageData current)
+    {
+        // Compute done-per-day from snapshots: today_done - yesterday_done (clamped to 0)
+        var sorted = history.OrderBy(r => r.Date, StringComparer.Ordinal).ToList();
+        var donePerDay = new List<(DateTimeOffset Date, int Delta)>();
+        for (int i = 1; i < sorted.Count; i++)
+        {
+            if (!DateTimeOffset.TryParse(sorted[i].Date, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeLocal, out var d)) continue;
+            int delta = Math.Max(0, sorted[i].MyDoneIssues - sorted[i - 1].MyDoneIssues);
+            donePerDay.Add((d, delta));
+        }
+        // Velocity: average of done-per-day over last 7 days  +  last 28 days
+        int velocity7 = donePerDay.Where(p => p.Date >= DateTimeOffset.Now.AddDays(-7)).Sum(p => p.Delta);
+        int velocity28 = donePerDay.Where(p => p.Date >= DateTimeOffset.Now.AddDays(-28)).Sum(p => p.Delta);
+        double weekly7 = velocity7;
+        double weekly28 = velocity28 / 4.0;
+
+        // Streak: consecutive days back from today with at least one done
+        int streak = 0;
+        var today = DateTimeOffset.Now.Date;
+        var byDate = donePerDay.ToDictionary(p => p.Date.Date, p => p.Delta);
+        for (int back = 0; back < 60; back++)
+        {
+            var d = today.AddDays(-back);
+            if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday) continue;
+            if (byDate.TryGetValue(d, out var dv) && dv > 0) streak++;
+            else if (back > 0) break;
+        }
+
+        LimitsPanel.Children.Add(new TextBlock
+        {
+            Text = "TRENDS",
+            Foreground = Brushes.Gray,
+            FontSize = 9,
+            Margin = new Thickness(0, 0, 0, 2)
+        });
+
+        // Velocity row
+        LimitsPanel.Children.Add(new TextBlock
+        {
+            Text = $"Velocity: {weekly7:0.#}/wk (last 7d) · {weekly28:0.#}/wk (4w avg)",
+            Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+            FontSize = 9,
+            Margin = new Thickness(0, 0, 0, 2)
+        });
+
+        // Streak row
+        if (streak > 0)
+        {
+            var streakColor = streak >= 5
+                ? Color.FromRgb(0xFF, 0xC1, 0x07)
+                : streak >= 3
+                    ? Color.FromRgb(0x4C, 0xAF, 0x50)
+                    : Color.FromRgb(0xCC, 0xCC, 0xCC);
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = $"🔥 Streak: {streak} working day{(streak == 1 ? "" : "s")} with ≥1 done",
+                Foreground = new SolidColorBrush(streakColor),
+                FontSize = 9,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+        }
+
+        // Done-per-day chart
+        LimitsPanel.Children.Add(new TextBlock
+        {
+            Text = "Done per day (last 30d)",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+            FontSize = 8,
+            Margin = new Thickness(0, 2, 0, 1)
+        });
+        LimitsPanel.Children.Add(BuildJiraDoneChart(donePerDay));
+
+        // Ranking trend sparkline
+        if (current.Me != null && history.Any(h => h.RankingSize > 1))
+        {
+            LimitsPanel.Children.Add(new TextBlock
+            {
+                Text = "Rank trend (lower = better)",
+                Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+                FontSize = 8,
+                Margin = new Thickness(0, 4, 0, 1)
+            });
+            LimitsPanel.Children.Add(BuildJiraRankChart(sorted, current.Me.AccountId));
+        }
+    }
+
+    private static UIElement BuildJiraDoneChart(List<(DateTimeOffset Date, int Delta)> data)
+    {
+        var canvas = new Canvas { Height = 40, Background = Brushes.Transparent };
+        canvas.SizeChanged += (_, _) => RenderJiraDoneChart(canvas, data);
+        canvas.Loaded += (_, _) => RenderJiraDoneChart(canvas, data);
+        return canvas;
+    }
+
+    private static void RenderJiraDoneChart(Canvas canvas, List<(DateTimeOffset Date, int Delta)> data)
+    {
+        canvas.Children.Clear();
+        double w = canvas.ActualWidth;
+        double h = canvas.ActualHeight;
+        if (w <= 0 || h <= 0 || data.Count == 0) return;
+
+        const double padX = 2, padY = 2;
+        var startDate = DateTimeOffset.Now.Date.AddDays(-29);
+        var totalDays = 30;
+
+        int maxVal = Math.Max(1, data.Max(p => p.Delta));
+        double colW = (w - 2 * padX) / totalDays;
+
+        for (int i = 0; i < totalDays; i++)
+        {
+            var d = startDate.AddDays(i);
+            var match = data.FirstOrDefault(p => p.Date.Date == d);
+            int val = match.Date == default ? 0 : match.Delta;
+            if (val <= 0) continue;
+            double barH = (h - 2 * padY) * val / maxVal;
+            var color = val >= 3 ? Color.FromRgb(0x4C, 0xAF, 0x50)
+                : val >= 1 ? Color.FromRgb(0x21, 0x96, 0xF3)
+                : Color.FromRgb(0x88, 0x88, 0x88);
+            var rect = new System.Windows.Shapes.Rectangle
+            {
+                Width = Math.Max(1, colW - 1),
+                Height = barH,
+                Fill = new SolidColorBrush(color),
+                RadiusX = 1, RadiusY = 1
+            };
+            Canvas.SetLeft(rect, padX + i * colW);
+            Canvas.SetTop(rect, h - padY - barH);
+            canvas.Children.Add(rect);
+        }
+    }
+
+    private static UIElement BuildJiraRankChart(List<JiraHistoryRecord> history, string myAccountId)
+    {
+        var canvas = new Canvas { Height = 30, Background = Brushes.Transparent };
+        canvas.SizeChanged += (_, _) => RenderJiraRankChart(canvas, history, myAccountId);
+        canvas.Loaded += (_, _) => RenderJiraRankChart(canvas, history, myAccountId);
+        return canvas;
+    }
+
+    private static void RenderJiraRankChart(Canvas canvas, List<JiraHistoryRecord> history, string myAccountId)
+    {
+        canvas.Children.Clear();
+        double w = canvas.ActualWidth;
+        double h = canvas.ActualHeight;
+        if (w <= 0 || h <= 0) return;
+
+        const double padX = 2, padY = 2;
+        var ranks = history
+            .Where(r => r.RankingSize > 0 && r.MyRank > 0)
+            .Select(r => (Date: DateTimeOffset.Parse(r.Date, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeLocal), Rank: r.MyRank, Total: r.RankingSize))
+            .OrderBy(r => r.Date)
+            .ToList();
+        if (ranks.Count < 2) return;
+
+        var minDate = ranks.First().Date;
+        var maxDate = ranks.Last().Date;
+        double spanSecs = Math.Max(1, (maxDate - minDate).TotalSeconds);
+        int maxRank = Math.Max(1, ranks.Max(r => r.Total));
+
+        var points = new System.Windows.Media.PointCollection();
+        foreach (var r in ranks)
+        {
+            double x = padX + (r.Date - minDate).TotalSeconds / spanSecs * (w - 2 * padX);
+            // Invert Y: rank 1 is best (top)
+            double y = padY + (r.Rank - 1.0) / Math.Max(1, maxRank - 1) * (h - 2 * padY);
+            points.Add(new Point(x, y));
+        }
+
+        // Reference line at rank=1 (top)
+        canvas.Children.Add(new System.Windows.Shapes.Line
+        {
+            X1 = padX, X2 = w - padX, Y1 = padY, Y2 = padY,
+            Stroke = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xC1, 0x07)),
+            StrokeThickness = 0.5,
+            StrokeDashArray = new DoubleCollection { 3, 3 }
+        });
+
+        var line = new System.Windows.Shapes.Polyline
+        {
+            Points = points,
+            Stroke = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
+            StrokeThickness = 1.5,
+            Fill = null
+        };
+        canvas.Children.Add(line);
+
+        // Highlight latest point
+        var last = points[^1];
+        var dot = new System.Windows.Shapes.Ellipse
+        {
+            Width = 4, Height = 4,
+            Fill = new SolidColorBrush(Color.FromRgb(0xFF, 0xC1, 0x07))
+        };
+        Canvas.SetLeft(dot, last.X - 2);
+        Canvas.SetTop(dot, last.Y - 2);
+        canvas.Children.Add(dot);
     }
 
     private static UIElement MakeJiraRow(string label, int count, Color labelColor)

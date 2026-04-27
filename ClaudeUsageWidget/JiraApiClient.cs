@@ -21,16 +21,28 @@ public sealed class JiraIssueStat
     public double DoneStoryPoints { get; set; }
 }
 
+public sealed class JiraIssueDetail
+{
+    public string Key { get; set; } = "";
+    public string Summary { get; set; } = "";
+    public string StatusName { get; set; } = "";
+    public string StatusCategory { get; set; } = ""; // new / indeterminate / done
+    public double StoryPoints { get; set; }
+    public DateTimeOffset? Updated { get; set; }
+}
+
 public sealed class JiraUsageData
 {
     public string ProjectKey { get; set; } = "";
     public JiraUser? Me { get; set; }
     /// <summary>Status name → count of MY issues in that status.</summary>
     public Dictionary<string, int> MyByStatus { get; set; } = new();
-    /// <summary>"To Do" / "In Progress" / "Done" category → count of MY issues.</summary>
+    /// <summary>"new" / "indeterminate" / "done" category → count of MY issues.</summary>
     public Dictionary<string, int> MyByCategory { get; set; } = new();
     public double MyStoryPoints { get; set; }
     public double MyDoneStoryPoints { get; set; }
+    /// <summary>My active (not Done) issues — for popup task list.</summary>
+    public List<JiraIssueDetail> MyActiveIssues { get; set; } = [];
     /// <summary>All tracked developers' stats. Sorted by DoneStoryPoints desc (then DoneIssues desc).</summary>
     public List<JiraIssueStat> DeveloperRanking { get; set; } = [];
     public int MyRank { get; set; } // 1-based position in ranking, 0 if not ranked
@@ -150,8 +162,28 @@ internal sealed class JiraApiClient : IDisposable
                 data.MyStoryPoints += issue.StoryPoints;
                 if (issue.StatusCategory == "done")
                     data.MyDoneStoryPoints += issue.StoryPoints;
+                else
+                {
+                    data.MyActiveIssues.Add(new JiraIssueDetail
+                    {
+                        Key = issue.Key,
+                        Summary = issue.Summary,
+                        StatusName = issue.StatusName,
+                        StatusCategory = issue.StatusCategory,
+                        StoryPoints = issue.StoryPoints,
+                        Updated = issue.Updated
+                    });
+                }
             }
         }
+        // Order: In Progress first, then To Do; within each by most recently updated
+        data.MyActiveIssues.Sort((a, b) =>
+        {
+            int rank(string c) => c switch { "indeterminate" => 0, "new" => 1, _ => 2 };
+            var rc = rank(a.StatusCategory).CompareTo(rank(b.StatusCategory));
+            if (rc != 0) return rc;
+            return (b.Updated ?? DateTimeOffset.MinValue).CompareTo(a.Updated ?? DateTimeOffset.MinValue);
+        });
 
         // Filter ranking to selected developers (or include all if none selected)
         var selected = settings.JiraDeveloperAccountIds;
@@ -273,11 +305,13 @@ internal sealed class JiraApiClient : IDisposable
 
     private sealed record JiraIssue(
         string Key,
+        string Summary,
         string StatusName,
         string StatusCategory,   // "new" / "indeterminate" / "done"
         string? AssigneeAccountId,
         string? AssigneeDisplayName,
-        double StoryPoints
+        double StoryPoints,
+        DateTimeOffset? Updated
     );
 
     private async Task<List<JiraIssue>> SearchIssuesAsync(SettingsStore settings, string jql, string? storyPointsField)
@@ -285,7 +319,7 @@ internal sealed class JiraApiClient : IDisposable
         var result = new List<JiraIssue>();
         int startAt = 0;
         const int pageSize = 100;
-        var fieldList = "summary,status,assignee" + (storyPointsField != null ? $",{storyPointsField}" : "");
+        var fieldList = "summary,status,assignee,updated" + (storyPointsField != null ? $",{storyPointsField}" : "");
         while (true)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get,
@@ -310,6 +344,7 @@ internal sealed class JiraApiClient : IDisposable
                 if (issue == null) continue;
                 var key = issue["key"]?.GetValue<string>() ?? "";
                 var fields = issue["fields"];
+                var summary = fields?["summary"]?.GetValue<string>() ?? "";
                 var statusName = fields?["status"]?["name"]?.GetValue<string>() ?? "Unknown";
                 var statusCategory = fields?["status"]?["statusCategory"]?["key"]?.GetValue<string>() ?? "new";
                 var assignee = fields?["assignee"];
@@ -321,7 +356,12 @@ internal sealed class JiraApiClient : IDisposable
                     try { sp = fields[storyPointsField]!.GetValue<double>(); }
                     catch { sp = 0; }
                 }
-                result.Add(new JiraIssue(key, statusName, statusCategory, accountId, displayName, sp));
+                DateTimeOffset? updated = null;
+                var updStr = fields?["updated"]?.GetValue<string>();
+                if (updStr != null && DateTimeOffset.TryParse(updStr, null,
+                        System.Globalization.DateTimeStyles.RoundtripKind, out var updTs))
+                    updated = updTs;
+                result.Add(new JiraIssue(key, summary, statusName, statusCategory, accountId, displayName, sp, updated));
             }
             int total = doc["total"]?.GetValue<int>() ?? result.Count;
             startAt += pageSize;
