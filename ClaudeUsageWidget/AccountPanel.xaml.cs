@@ -88,11 +88,12 @@ public partial class AccountPanel : UserControl
         BarsPanel.RowDefinitions.Clear();
         BarsPanel.Children.Clear();
 
-        // Row layout: bar (compact) | text1 | text2
-        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        // Row layout: month bar | spacer | "Need X h/day" line | today bar | "Nd left" line
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });   // month bar
         BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Pixel) });
-        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });   // need line
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });   // today bar
+        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });   // line2
 
         // Build bar
         var bar = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0 };
@@ -167,6 +168,29 @@ public partial class AccountPanel : UserControl
         BarsPanel.Children.Add(line1Vb);
         _togglLine1 = line1Block;
 
+        // Today's progress bar — actual hours worked today vs the ideal hours/day computed above.
+        double todayHours = 0;
+        var todayDateLocal = DateTimeOffset.Now.Date;
+        foreach (var day in data.DailyBreakdown)
+            if (day.Date.Date == todayDateLocal) { todayHours = day.Hours; break; }
+        double todayTarget = reqHoursPerDay > 0 ? reqHoursPerDay : 8.0;
+        double todayPct = todayTarget > 0 ? Math.Min(100.0, todayHours / todayTarget * 100.0) : 0;
+
+        var todayBar = new ProgressBar { Minimum = 0, Maximum = 100, Value = todayPct };
+        todayBar.Template = CreateBarTemplate();
+        var todayOverlay = new TextBlock
+        {
+            Text = $"Today: {todayHours:0.#}h / {todayTarget:0.#}h",
+            Foreground = Brushes.White,
+            FontSize = 9
+        };
+        var todayContainer = new Grid();
+        todayContainer.Children.Add(todayBar);
+        todayContainer.Children.Add(WrapInShrinkingViewbox(todayOverlay));
+        Grid.SetRow(todayContainer, 3);
+        BarsPanel.Children.Add(todayContainer);
+        SetTodayBarColor(GetBarIndicator(todayBar), todayHours, todayTarget);
+
         string line2;
         if (wdRemainingFractional > 0 && remaining > 0 && data.TargetCzk > 0)
         {
@@ -175,7 +199,7 @@ public partial class AccountPanel : UserControl
         }
         else
         {
-            line2 = $"{data.HoursWorked:0.#}h worked";
+            line2 = $"{data.HoursWorked:0.#}h worked this month";
         }
 
         var line2Block = new TextBlock
@@ -185,9 +209,20 @@ public partial class AccountPanel : UserControl
             FontSize = 9
         };
         var line2Vb = WrapInShrinkingViewbox(line2Block);
-        Grid.SetRow(line2Vb, 3);
+        Grid.SetRow(line2Vb, 4);
         BarsPanel.Children.Add(line2Vb);
         _togglLine2 = line2Block;
+    }
+
+    private static void SetTodayBarColor(Border? indicator, double hours, double target)
+    {
+        if (indicator == null) return;
+        string color;
+        if (target <= 0) color = "#888888";
+        else if (hours >= target) color = "#2196F3";       // blue — daily goal met
+        else if (hours >= target * 0.5) color = "#4CAF50"; // green — past halfway
+        else color = "#FF9800";                            // orange — early in day
+        indicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
     }
 
     public void UpdateJiraBars(JiraUsageData data)
