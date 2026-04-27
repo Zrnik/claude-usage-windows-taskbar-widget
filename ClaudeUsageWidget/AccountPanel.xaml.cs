@@ -88,10 +88,9 @@ public partial class AccountPanel : UserControl
         BarsPanel.RowDefinitions.Clear();
         BarsPanel.Children.Clear();
 
-        // Row layout: month bar | spacer | "Need X h/day" line | today bar | "Nd left" line
+        // Row layout: month bar | spacer | today bar | "Nd left" line
         BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });   // month bar
         BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Pixel) });
-        BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });   // need line
         BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });   // today bar
         BarsPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });   // line2
 
@@ -130,44 +129,6 @@ public partial class AccountPanel : UserControl
         double impliedRate = (wdTotal > 0 && data.TargetCzk > 0) ? data.TargetCzk / (wdTotal * 8.0) : 0;
         double reqHoursPerDay = (impliedRate > 0 && wdRemainingFractional > 0) ? remaining / (impliedRate * wdRemainingFractional) : 0;
 
-        string line1;
-        Color line1Color;
-        if (data.TargetCzk <= 0)
-        {
-            line1 = "No target set";
-            line1Color = Color.FromRgb(0x88, 0x88, 0x88);
-        }
-        else if (remaining <= 0)
-        {
-            line1 = "✓ Target reached";
-            line1Color = Color.FromRgb(0x21, 0x96, 0xF3);
-        }
-        else if (wdRemainingFractional <= 0)
-        {
-            line1 = "Month over";
-            line1Color = Color.FromRgb(0xF4, 0x43, 0x36);
-        }
-        else
-        {
-            line1 = $"Need {reqHoursPerDay:0.#} h/day";
-            line1Color = reqHoursPerDay <= 8
-                ? Color.FromRgb(0x4C, 0xAF, 0x50)
-                : reqHoursPerDay <= 10
-                    ? Color.FromRgb(0xFF, 0x98, 0x00)
-                    : Color.FromRgb(0xF4, 0x43, 0x36);
-        }
-
-        var line1Block = new TextBlock
-        {
-            Text = line1,
-            Foreground = new SolidColorBrush(line1Color),
-            FontSize = 9
-        };
-        var line1Vb = WrapInShrinkingViewbox(line1Block);
-        Grid.SetRow(line1Vb, 2);
-        BarsPanel.Children.Add(line1Vb);
-        _togglLine1 = line1Block;
-
         // Today's progress bar — actual hours worked today vs the ideal hours/day computed above.
         double todayHours = 0;
         var todayDateLocal = DateTimeOffset.Now.Date;
@@ -176,20 +137,32 @@ public partial class AccountPanel : UserControl
         double todayTarget = reqHoursPerDay > 0 ? reqHoursPerDay : 8.0;
         double todayPct = todayTarget > 0 ? Math.Min(100.0, todayHours / todayTarget * 100.0) : 0;
 
+        // Special states override the bar text
+        string todayText;
+        if (data.TargetCzk <= 0)
+            todayText = $"Today: {todayHours:0.#}h  (no monthly target)";
+        else if (remaining <= 0)
+            todayText = $"✓ Target reached · {todayHours:0.#}h today";
+        else if (wdRemainingFractional <= 0)
+            todayText = $"Month over · {todayHours:0.#}h today";
+        else
+            todayText = $"Today: {todayHours:0.#}h / {todayTarget:0.#}h";
+
         var todayBar = new ProgressBar { Minimum = 0, Maximum = 100, Value = todayPct };
         todayBar.Template = CreateBarTemplate();
         var todayOverlay = new TextBlock
         {
-            Text = $"Today: {todayHours:0.#}h / {todayTarget:0.#}h",
+            Text = todayText,
             Foreground = Brushes.White,
             FontSize = 9
         };
         var todayContainer = new Grid();
         todayContainer.Children.Add(todayBar);
         todayContainer.Children.Add(WrapInShrinkingViewbox(todayOverlay));
-        Grid.SetRow(todayContainer, 3);
+        Grid.SetRow(todayContainer, 2);
         BarsPanel.Children.Add(todayContainer);
         SetTodayBarColor(GetBarIndicator(todayBar), todayHours, todayTarget);
+        _togglLine1 = todayOverlay; // keep reference for spinner/error handlers
 
         string line2;
         if (wdRemainingFractional > 0 && remaining > 0 && data.TargetCzk > 0)
@@ -209,7 +182,7 @@ public partial class AccountPanel : UserControl
             FontSize = 9
         };
         var line2Vb = WrapInShrinkingViewbox(line2Block);
-        Grid.SetRow(line2Vb, 4);
+        Grid.SetRow(line2Vb, 3);
         BarsPanel.Children.Add(line2Vb);
         _togglLine2 = line2Block;
     }
