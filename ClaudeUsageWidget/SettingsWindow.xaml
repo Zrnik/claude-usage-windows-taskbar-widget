@@ -131,7 +131,7 @@
                     </Grid>
                     <TextBlock x:Name="TogglStatusText" Foreground="#888888" FontSize="9" Margin="0,0,0,6"/>
 
-                    <Grid Margin="0,0,0,4">
+                    <Grid x:Name="TogglTargetRow" Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="80"/>
@@ -142,6 +142,11 @@
                                  Background="#2A2A2A" Foreground="White"
                                  BorderBrush="#555555" FontSize="10" Padding="4,2"
                                  HorizontalContentAlignment="Right"/>
+                        <PasswordBox x:Name="TogglTargetPasswordBox" Grid.Column="1"
+                                     Background="#2A2A2A" Foreground="White"
+                                     BorderBrush="#555555" FontSize="10" Padding="4,2"
+                                     HorizontalContentAlignment="Right"
+                                     Visibility="Collapsed"/>
                     </Grid>
 
                     <Grid Margin="0,0,0,8">

@@ -11,7 +11,7 @@ public partial class SettingsWindow : Window
     private const string RunRegistryValue = "ClaudeUsageWidget";
     private bool _closing;
     private readonly Dictionary<string, TextBox> _chartWindowBoxes = new();
-    private readonly Dictionary<long, TextBox> _togglRateBoxes = new();
+    private readonly Dictionary<long, Control> _togglRateBoxes = new();
 
     public SettingsWindow()
     {
@@ -46,6 +46,9 @@ public partial class SettingsWindow : Window
         BuildChartWindowsUI(settings);
         InitTogglUI(settings);
         InitJiraUI(settings);
+        ApplyIncognitoVisibility();
+        SettingsStore.IncognitoChanged += OnIncognitoChangedFromOutside;
+        Closed += (_, _) => SettingsStore.IncognitoChanged -= OnIncognitoChangedFromOutside;
 
         TogglRefreshButton.Click += (_, _) => SettingsStore.RaiseTogglRefreshRequested();
         JiraRefreshButton.Click += (_, _) => SettingsStore.RaiseJiraRefreshRequested();
@@ -286,9 +289,11 @@ public partial class SettingsWindow : Window
     private void InitTogglUI(SettingsStore settings)
     {
         TogglApiKeyBox.Password = settings.TogglApiKey;
-        TogglTargetBox.Text = settings.TogglMonthlyTargetCzk > 0
+        var targetText = settings.TogglMonthlyTargetCzk > 0
             ? settings.TogglMonthlyTargetCzk.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
             : "";
+        TogglTargetBox.Text = targetText;
+        TogglTargetPasswordBox.Password = targetText;
         WorkdayStartBox.Text = settings.WorkdayStartHour.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
         WorkdayEndBox.Text = settings.WorkdayEndHour.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
@@ -297,6 +302,7 @@ public partial class SettingsWindow : Window
             _ = SafeRunAsync(() => OnTogglKeyChangedAsync(), TogglStatusText);
         };
         TogglTargetBox.LostFocus += (_, _) => SaveSettings();
+        TogglTargetPasswordBox.LostFocus += (_, _) => SaveSettings();
         WorkdayStartBox.LostFocus += (_, _) => SaveSettings();
         WorkdayEndBox.LostFocus += (_, _) => SaveSettings();
 
@@ -390,19 +396,40 @@ public partial class SettingsWindow : Window
             Grid.SetColumn(labelBlock, 0);
 
             var currentRate = settings.TogglProjectRates.TryGetValue(p.Id, out var r) ? r : 0;
-            var box = new TextBox
+            var rateText = currentRate > 0
+                ? currentRate.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
+                : "";
+            Control box;
+            if (settings.IncognitoMode)
             {
-                Text = currentRate > 0
-                    ? currentRate.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
-                    : "",
-                Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x2A)),
-                Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
-                FontSize = 10,
-                Padding = new Thickness(4, 2, 4, 2),
-                HorizontalContentAlignment = HorizontalAlignment.Right
-            };
-            box.LostFocus += (_, _) => SaveSettings();
+                var pb = new PasswordBox
+                {
+                    Password = rateText,
+                    Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x2A)),
+                    Foreground = Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+                    FontSize = 10,
+                    Padding = new Thickness(4, 2, 4, 2),
+                    HorizontalContentAlignment = HorizontalAlignment.Right
+                };
+                pb.LostFocus += (_, _) => SaveSettings();
+                box = pb;
+            }
+            else
+            {
+                var tb = new TextBox
+                {
+                    Text = rateText,
+                    Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x2A)),
+                    Foreground = Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+                    FontSize = 10,
+                    Padding = new Thickness(4, 2, 4, 2),
+                    HorizontalContentAlignment = HorizontalAlignment.Right
+                };
+                tb.LostFocus += (_, _) => SaveSettings();
+                box = tb;
+            }
             Grid.SetColumn(box, 1);
 
             grid.Children.Add(labelBlock);
@@ -472,6 +499,31 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void ApplyIncognitoVisibility()
+    {
+        bool incognito = SettingsStore.Instance.IncognitoMode;
+        if (incognito)
+        {
+            TogglTargetPasswordBox.Password = TogglTargetBox.Text;
+            TogglTargetBox.Visibility = Visibility.Collapsed;
+            TogglTargetPasswordBox.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            TogglTargetBox.Text = TogglTargetPasswordBox.Password;
+            TogglTargetPasswordBox.Visibility = Visibility.Collapsed;
+            TogglTargetBox.Visibility = Visibility.Visible;
+        }
+
+        // Rebuild rate boxes so they swap between TextBox and PasswordBox
+        var settings = SettingsStore.Instance;
+        var apiKey = settings.TogglApiKey;
+        if (!string.IsNullOrWhiteSpace(apiKey))
+            _ = SafeRunAsync(() => ValidateAndLoadProjectsAsync(apiKey), TogglStatusText);
+    }
+
+    private void OnIncognitoChangedFromOutside() => Dispatcher.Invoke(ApplyIncognitoVisibility);
+
     private void SafeClose()
     {
         if (_closing) return;
@@ -498,7 +550,9 @@ public partial class SettingsWindow : Window
                 settings.ChartWindowHours[label] = hours;
         }
 
-        var targetRaw = TogglTargetBox.Text.Trim();
+        var targetRaw = (SettingsStore.Instance.IncognitoMode
+            ? TogglTargetPasswordBox.Password
+            : TogglTargetBox.Text).Trim();
         if (string.IsNullOrEmpty(targetRaw))
         {
             settings.TogglMonthlyTargetCzk = 0;
@@ -508,6 +562,11 @@ public partial class SettingsWindow : Window
         {
             settings.TogglMonthlyTargetCzk = target;
         }
+        // Mirror raw value to the inactive control so toggling incognito keeps state in sync
+        if (SettingsStore.Instance.IncognitoMode)
+            TogglTargetBox.Text = targetRaw;
+        else
+            TogglTargetPasswordBox.Password = targetRaw;
 
         if (double.TryParse(WorkdayStartBox.Text.Trim(), System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out var ws) && ws is >= 0 and <= 24)
@@ -518,7 +577,12 @@ public partial class SettingsWindow : Window
 
         foreach (var (projectId, box) in _togglRateBoxes)
         {
-            var raw = box.Text.Trim();
+            var raw = (box switch
+            {
+                TextBox tb => tb.Text,
+                PasswordBox pb => pb.Password,
+                _ => ""
+            }).Trim();
             if (string.IsNullOrEmpty(raw))
             {
                 settings.TogglProjectRates.Remove(projectId);
