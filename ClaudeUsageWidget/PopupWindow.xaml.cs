@@ -51,7 +51,7 @@ public partial class PopupWindow : Window
             {
                 var labelText = FormatLabel(limit.Label);
                 if (limit.Label == "spend" && data.SpendUsed.HasValue && data.SpendLimit.HasValue)
-                    labelText += $"  ${data.SpendUsed:0.00} / ${data.SpendLimit:0.00}";
+                    labelText += $"  {FormatUsd(data.SpendUsed.Value)} / {FormatUsd(data.SpendLimit.Value)}";
 
                 var label = new TextBlock
                 {
@@ -925,7 +925,7 @@ public partial class PopupWindow : Window
                 Grid.SetColumn(left, 0);
 
                 var rateStr = p.RateCzk > 0
-                    ? $"{p.Hours:0.#}h × {p.RateCzk:0} = {FormatCzk(p.Earned)}"
+                    ? $"{p.Hours:0.#}h × {FormatRate(p.RateCzk)} = {FormatCzk(p.Earned)}"
                     : $"{p.Hours:0.#}h (no rate)";
                 var right = new TextBlock
                 {
@@ -965,6 +965,7 @@ public partial class PopupWindow : Window
 
     private static string FormatCzk(double czk)
     {
+        if (SettingsStore.Instance.IncognitoMode) return "••• Kč";
         if (double.IsNaN(czk) || double.IsInfinity(czk)) return "— Kč";
         // Czech style: "50 000 Kč" with non-breaking space as thousand separator, no decimals
         var nfi = (System.Globalization.NumberFormatInfo)System.Globalization.CultureInfo.InvariantCulture.NumberFormat.Clone();
@@ -1080,6 +1081,14 @@ public partial class PopupWindow : Window
             });
         }
     }
+
+    private static string FormatRate(double rate) =>
+        SettingsStore.Instance.IncognitoMode
+            ? "•••"
+            : rate.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string FormatUsd(double usd) =>
+        SettingsStore.Instance.IncognitoMode ? "$•••" : $"${usd:0.00}";
 
     private void AddSeparator() =>
         LimitsPanel.Children.Add(new Border

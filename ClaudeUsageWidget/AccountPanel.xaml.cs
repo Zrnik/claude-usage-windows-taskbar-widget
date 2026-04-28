@@ -102,11 +102,17 @@ public partial class AccountPanel : UserControl
             : 0.0;
         bar.Value = pct;
 
+        bool incognito = SettingsStore.Instance.IncognitoMode;
+        string barOverlayText;
+        if (incognito)
+            barOverlayText = data.TargetCzk > 0 ? $"{pct:0}%" : "•••";
+        else
+            barOverlayText = data.TargetCzk > 0
+                ? $"{pct:0}%  {FormatCzk(data.EarnedCzk)} / {FormatCzk(data.TargetCzk)}"
+                : $"{FormatCzk(data.EarnedCzk)}  (no target)";
         var barOverlay = new TextBlock
         {
-            Text = data.TargetCzk > 0
-                ? $"{pct:0}%  {FormatCzk(data.EarnedCzk)} / {FormatCzk(data.TargetCzk)}"
-                : $"{FormatCzk(data.EarnedCzk)}  (no target)",
+            Text = barOverlayText,
             Foreground = Brushes.White,
             FontSize = 9
         };
@@ -168,7 +174,9 @@ public partial class AccountPanel : UserControl
         if (wdRemainingFractional > 0 && remaining > 0 && data.TargetCzk > 0)
         {
             double perDay = remaining / wdRemainingFractional;
-            line2 = $"{wdRemainingDisplay}d left · {FormatCzk(perDay)}/day";
+            line2 = incognito
+                ? $"{wdRemainingDisplay}d left"
+                : $"{wdRemainingDisplay}d left · {FormatCzk(perDay)}/day";
         }
         else
         {
