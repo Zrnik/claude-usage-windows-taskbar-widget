@@ -12,7 +12,6 @@ internal sealed class SettingsStore
 
     public bool NotificationsEnabled { get; set; }
     public bool NotifyOnReset { get; set; }
-    public bool AlwaysOnTop { get; set; } = true;
     public bool IncognitoMode { get; set; }
 
     public bool ShowClaude { get; set; } = true;
@@ -71,7 +70,6 @@ internal sealed class SettingsStore
             if (key == null) return;
             NotificationsEnabled = (int)(key.GetValue("NotificationsEnabled", 0) ?? 0) != 0;
             NotifyOnReset = (int)(key.GetValue("NotifyOnReset", 0) ?? 0) != 0;
-            AlwaysOnTop = (int)(key.GetValue("AlwaysOnTop", 1) ?? 1) != 0;
             IncognitoMode = (int)(key.GetValue("IncognitoMode", 0) ?? 0) != 0;
             ShowClaude = (int)(key.GetValue("ShowClaude", 1) ?? 1) != 0;
             ShowCodex = (int)(key.GetValue("ShowCodex", 1) ?? 1) != 0;
@@ -150,7 +148,6 @@ internal sealed class SettingsStore
             using var key = Registry.CurrentUser.CreateSubKey(RegistryPath);
             key.SetValue("NotificationsEnabled", NotificationsEnabled ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("NotifyOnReset", NotifyOnReset ? 1 : 0, RegistryValueKind.DWord);
-            key.SetValue("AlwaysOnTop", AlwaysOnTop ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("IncognitoMode", IncognitoMode ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("ShowClaude", ShowClaude ? 1 : 0, RegistryValueKind.DWord);
             key.SetValue("ShowCodex", ShowCodex ? 1 : 0, RegistryValueKind.DWord);

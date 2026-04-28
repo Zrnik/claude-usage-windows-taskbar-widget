@@ -139,12 +139,6 @@ public partial class MainWindow : Window
 
         _topMostEnforcer = new TopMostEnforcer(hwnd);
 
-        if (!SettingsStore.Instance.AlwaysOnTop)
-        {
-            _topMostEnforcer.Pause();
-            Topmost = false;
-        }
-
         Closed += (_, _) =>
         {
             if (!_isPrimary)
@@ -898,21 +892,6 @@ public partial class MainWindow : Window
         var settings = SettingsStore.Instance;
         var menu = new ContextMenuWindow { Owner = this };
 
-        menu.AddCheckItem("Always on top", settings.AlwaysOnTop, true, on =>
-        {
-            settings.AlwaysOnTop = on;
-            settings.Save();
-            if (on)
-            {
-                Topmost = true;
-                _topMostEnforcer?.Resume();
-            }
-            else
-            {
-                _topMostEnforcer?.Pause();
-                Topmost = false;
-            }
-        });
         menu.AddCheckItem("Incognito mode", settings.IncognitoMode, true, on =>
         {
             settings.IncognitoMode = on;
