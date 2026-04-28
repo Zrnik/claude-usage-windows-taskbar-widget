@@ -150,6 +150,7 @@ public partial class MainWindow : Window
             if (!_isPrimary)
                 UsageUpdated -= OnSharedUsageUpdated;
             SettingsStore.VisibilityChanged -= OnVisibilityChanged;
+            SettingsStore.IncognitoChanged -= OnIncognitoChanged;
             _topMostEnforcer?.Dispose();
             _popup?.Close();
             _refreshTimer?.Stop();
@@ -217,6 +218,7 @@ public partial class MainWindow : Window
 
         ApplyTileVisibility();
         SettingsStore.VisibilityChanged += OnVisibilityChanged;
+        SettingsStore.IncognitoChanged += OnIncognitoChanged;
         SettingsStore.TogglRefreshRequested += () => Dispatcher.Invoke(() => _ = ForceRefreshToggl());
         SettingsStore.JiraRefreshRequested += () => Dispatcher.Invoke(() => _ = ForceRefreshJira());
 
@@ -550,6 +552,18 @@ public partial class MainWindow : Window
                 jira.Panel.ShowLoadingState();
                 _ = ForceRefreshJira();
             }
+        });
+    }
+
+    private void OnIncognitoChanged()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (_togglAccount is { } toggl && toggl.LastUsage != null)
+                toggl.Panel.UpdateTogglBars(toggl.LastUsage);
+            if (_jiraAccount is { } jira && jira.LastUsage != null)
+                jira.Panel.UpdateJiraBars(jira.LastUsage);
+            _popup?.Hide();
         });
     }
 
@@ -899,6 +913,12 @@ public partial class MainWindow : Window
                 Topmost = false;
             }
         });
+        menu.AddCheckItem("Incognito mode", settings.IncognitoMode, true, on =>
+        {
+            settings.IncognitoMode = on;
+            settings.Save();
+            SettingsStore.RaiseIncognitoChanged();
+        });
 #if !DEBUG
         menu.AddCheckItem("Desktop shortcut", DesktopShortcutExists(), true, on =>
         {
@@ -920,7 +940,8 @@ public partial class MainWindow : Window
         menu.AddSeparator();
         menu.AddItem("Quit", () => Application.Current.Shutdown());
 
-        menu.ShowAbove(Left, Top);
+        var clickPoint = e.GetPosition(this);
+        menu.ShowAbove(Left + clickPoint.X, Top);
     }
 
     internal static string DesktopShortcutPath() =>
