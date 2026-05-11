@@ -266,27 +266,45 @@ internal sealed class ClaudeApiClient : IDisposable
 
         var limits = new List<RateLimitEntry>();
 
-        var sessionWindow = doc["rate_limit"]?["primary_window"];
-        if (sessionWindow != null)
+        // Labels derivované z response — žádné hardcoded "5h"/"7d", používáme limit_window_seconds.
+        AddRateLimit(limits, doc["rate_limit"], "session");
+        AddRateLimit(limits, doc["code_review_rate_limit"], "review");
+
+        // Per-model limity (např. GPT-5.3-Codex-Spark) — name přímo z response.
+        if (doc["additional_rate_limits"] is JsonArray extras)
         {
-            limits.Add(new RateLimitEntry
+            foreach (var item in extras)
             {
-                Label = "session",
-                Utilization = sessionWindow["used_percent"]?.GetValue<double>() ?? 0,
-                ResetsAt = DateTimeOffset.FromUnixTimeSeconds(
-                    sessionWindow["reset_at"]?.GetValue<long>() ?? 0)
-            });
+                var name = item?["limit_name"]?.GetValue<string>() ?? "extra";
+                AddRateLimit(limits, item?["rate_limit"], name);
+            }
         }
 
-        var reviewWindow = doc["code_review_rate_limit"]?["primary_window"];
-        if (reviewWindow != null)
+        static void AddRateLimit(List<RateLimitEntry> list, JsonNode? rl, string baseLabel)
         {
-            limits.Add(new RateLimitEntry
+            if (rl == null) return;
+            AddWindow(list, rl["primary_window"], baseLabel);
+            AddWindow(list, rl["secondary_window"], baseLabel);
+        }
+
+        static void AddWindow(List<RateLimitEntry> list, JsonNode? window, string baseLabel)
+        {
+            if (window == null) return;
+            var seconds = window["limit_window_seconds"]?.GetValue<long>() ?? 0;
+            var windowLabel = seconds switch
             {
-                Label = "review",
-                Utilization = reviewWindow["used_percent"]?.GetValue<double>() ?? 0,
+                0 => "",
+                _ when seconds % 86400 == 0 => $"{seconds / 86400}d",
+                _ when seconds % 3600 == 0 => $"{seconds / 3600}h",
+                _ when seconds % 60 == 0 => $"{seconds / 60}m",
+                _ => $"{seconds}s"
+            };
+            list.Add(new RateLimitEntry
+            {
+                Label = string.IsNullOrEmpty(windowLabel) ? baseLabel : $"{baseLabel}-{windowLabel}",
+                Utilization = window["used_percent"]?.GetValue<double>() ?? 0,
                 ResetsAt = DateTimeOffset.FromUnixTimeSeconds(
-                    reviewWindow["reset_at"]?.GetValue<long>() ?? 0)
+                    window["reset_at"]?.GetValue<long>() ?? 0)
             });
         }
 
