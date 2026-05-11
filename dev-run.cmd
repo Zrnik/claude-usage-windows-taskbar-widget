@@ -10,8 +10,11 @@ if defined PROD_PATH (
     echo Killing production: %PROD_PATH%
     taskkill /IM ClaudeUsageWidget-win-x64.exe /F >nul 2>&1
     taskkill /IM ClaudeUsageWidget-win-arm64.exe /F >nul 2>&1
-    timeout /t 1 /nobreak >nul
 )
+
+:: Kill any leftover dev build (zombie from previous run)
+taskkill /IM ClaudeUsageWidget.exe /F >nul 2>&1
+ping 127.0.0.1 -n 2 >nul 2>&1
 
 :: Run dev build (blocks until closed)
 echo Starting dev build...
