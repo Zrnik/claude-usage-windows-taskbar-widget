@@ -108,9 +108,13 @@ internal sealed class UsageHistoryStore
 
     private static string GetHistoryPath(string accountKey)
     {
-        // Sanitizace: "claude:ORG_ID" → "claude_ORG_ID"
-        var filename = accountKey.Replace(':', '_') + ".json";
-        return Path.Combine(GetHistoryDir(), filename);
+        // Sanitizace: nahradí všechny znaky neplatné v Windows filename (`<>:"/\|?*`)
+        // plus všechny non-printable. Codex JWT `sub` má tvar "google-oauth2|<id>" — pipe by jinak hodil IOException.
+        var invalid = Path.GetInvalidFileNameChars();
+        var sb = new System.Text.StringBuilder(accountKey.Length);
+        foreach (var c in accountKey)
+            sb.Append(invalid.Contains(c) ? '_' : c);
+        return Path.Combine(GetHistoryDir(), sb + ".json");
     }
 
     private static string GetHistoryDir() => Path.Combine(
