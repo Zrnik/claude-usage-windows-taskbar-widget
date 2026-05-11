@@ -169,19 +169,10 @@ public partial class MainWindow : Window
         _isPrimary = isPrimary;
         InitializeComponent();
 
+        // Claude/Codex panely jdou před Toggl/Jira — pokud konstruktor dostane prázdný seznam,
+        // doplní se později přes AddAccounts() (async load po Show()).
         foreach (var client in clients)
-        {
-            var index = _accounts.Count;
-            var panel = new AccountPanel(client.AccountService);
-            panel.MouseEnter += (_, _) => ShowPopupForAccount(index);
-            panel.MouseLeave += (_, _) => HidePopup();
-            panel.MouseLeftButtonDown += (_, args) =>
-            {
-                if (args.ClickCount == 2) _ = ForceRefreshAccount(index);
-            };
-            AccountsPanel.Children.Add(panel);
-            _accounts.Add((client, panel, null));
-        }
+            AppendAccountPanel(client);
 
         // Always instantiate Toggl client + panel so the tile can hot-reload when API key is entered
         var togglInstance = togglClient ?? new TogglApiClient();
@@ -312,6 +303,7 @@ public partial class MainWindow : Window
 
     private void StartSpinnerTimer()
     {
+        if (_spinnerTimer != null) return;
         _spinnerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _spinnerTimer.Tick += (_, _) =>
         {
@@ -321,6 +313,73 @@ public partial class MainWindow : Window
             _jiraAccount?.Panel.AdvanceSpinner();
         };
         _spinnerTimer.Start();
+    }
+
+    /// <summary>Vloží jednu Claude/Codex dlaždici před Toggl/Jira a zapojí mouse eventy.</summary>
+    private void AppendAccountPanel(ClaudeApiClient client)
+    {
+        var index = _accounts.Count;
+        var panel = new AccountPanel(client.AccountService);
+        panel.MouseEnter += (_, _) => ShowPopupForAccount(index);
+        panel.MouseLeave += (_, _) => HidePopup();
+        panel.MouseLeftButtonDown += (_, args) =>
+        {
+            if (args.ClickCount == 2) _ = ForceRefreshAccount(index);
+        };
+        // Vlož před Toggl/Jira panely — ty byly přidány v konstruktoru.
+        AccountsPanel.Children.Insert(index, panel);
+        _accounts.Add((client, panel, null));
+    }
+
+    /// <summary>Asynchronně doplní Claude/Codex klienty po Show() — voláno z Program.cs.</summary>
+    internal async Task AddAccountsAsync(List<ClaudeApiClient> clients)
+    {
+        foreach (var client in clients)
+        {
+            AppendAccountPanel(client);
+            var (_, panel, _) = _accounts[^1];
+            if (panel.Visibility == Visibility.Visible)
+                panel.ShowLoadingState();
+        }
+
+        // Re-applikuj viditelnost podle nastavení (filtry per-service)
+        ApplyTileVisibility();
+
+        if (!_isPrimary)
+        {
+            // Sekundární okno bere data z primárního přes UsageUpdated event
+            OnSharedUsageUpdated();
+            return;
+        }
+
+        StartSpinnerTimer();
+
+        // Postupně přivolat usage pro každý nový účet
+        for (int i = 0; i < _accounts.Count; i++)
+        {
+            var (client, panel, _) = _accounts[i];
+            if (panel.Visibility != Visibility.Visible) continue;
+
+            var usage = await client.GetUsageAsync();
+            if (usage != null)
+            {
+                _accounts[i] = (client, panel, usage);
+                panel.UpdateBars(usage);
+                _historyStore.Append(client.AccountKey, usage);
+                NotificationService.Instance.CheckAndNotify(client.AccountKey, usage);
+                if (client.AccountKey != null)
+                    SharedUsage[client.AccountKey] = usage;
+            }
+            else
+            {
+                panel.ShowErrorState(client.LastError);
+            }
+        }
+
+        // Po fetchnutí všech účtů zastavit spinner (pokud už Toggl/Jira skončily)
+        StopSpinner();
+        UsageUpdated?.Invoke();
+        StartRefreshTimer();
     }
 
     private void StopSpinner()
@@ -414,6 +473,7 @@ public partial class MainWindow : Window
 
     private void StartRefreshTimer()
     {
+        if (_refreshTimer != null) return; // idempotent — accounts can be added po Loaded
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _refreshTimer.Tick += async (_, _) =>
         {

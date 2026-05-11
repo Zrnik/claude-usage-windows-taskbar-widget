@@ -89,16 +89,7 @@ internal class App : Application
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        // Načíst všechny unikátní účty (Claude Windows+WSL deduplikováno, Codex)
-        var accounts = CredentialStore.LoadAllAccounts();
-
-        // Fallback: žádné credentials → jeden client v error stavu
-        if (accounts.Count == 0)
-            accounts.Add(new AccountInfo(ServiceType.Claude, new OAuthCredential(), "no-credentials"));
-
-        var clients = accounts.Select(a => new ClaudeApiClient(a)).ToList();
-
-        // Toggl client — jen pokud je v Settings zadaný API key
+        // Toggl client — jen pokud je v Settings zadaný API key (žádné WSL/HTTP volání)
         TogglApiClient? togglClient = null;
         if (!string.IsNullOrWhiteSpace(SettingsStore.Instance.TogglApiKey))
             togglClient = new TogglApiClient();
@@ -106,12 +97,7 @@ internal class App : Application
         // Migrate history from %AppData% to %ProgramData% (persists across reinstalls)
         UsageHistoryStore.Instance.MigrateFromAppData();
 
-        // Migrate orphaned history files (e.g. after token format change from JWT to opaque)
-        var activeKeys = clients.Select(c => c.AccountKey).OfType<string>().ToList();
-        foreach (var client in clients)
-            if (client.AccountKey != null)
-                UsageHistoryStore.Instance.MigrateOrphanedHistory(client.AccountKey, activeKeys);
-
+        var clients = new List<ClaudeApiClient>();
         Exit += (_, _) =>
         {
             foreach (var c in clients) c.Dispose();
@@ -120,20 +106,58 @@ internal class App : Application
 
         var primaryHwnd = FindWindow("Shell_TrayWnd", null);
 
-        // Primární okno = všechny účty
-        var primaryWindow = new MainWindow(clients, togglClient, primaryHwnd, isPrimary: true);
+        // Okno UKÁZAT IHNED — bez Claude účtů. Credential loading volá wsl.exe (1-5s cold start),
+        // synchronní načtení by zdrželo zobrazení widgetu o několik sekund.
+        var primaryWindow = new MainWindow([], togglClient, primaryHwnd, isPrimary: true);
         MainWindow = primaryWindow;
         primaryWindow.Show();
 
-        // Sekundární taskbary — všechny účty (stejný list)
+        var secondaryWindows = new List<MainWindow>();
         EnumWindows((hwnd, _) =>
         {
             var sb = new StringBuilder(64);
             GetClassName(hwnd, sb, 64);
             if (sb.ToString() == "Shell_SecondaryTrayWnd")
-                new MainWindow(clients, togglClient, hwnd, isPrimary: false).Show();
+            {
+                var sw = new MainWindow([], togglClient, hwnd, isPrimary: false);
+                sw.Show();
+                secondaryWindows.Add(sw);
+            }
             return true;
         }, IntPtr.Zero);
+
+        // Asynchronní načtení credentials → push do všech oken
+        _ = Task.Run(async () =>
+        {
+            List<AccountInfo> accounts;
+            try
+            {
+                accounts = CredentialStore.LoadAllAccounts();
+                WriteCrashLog($"LoadAllAccounts: {accounts.Count} accounts ({string.Join(", ", accounts.Select(a => $"{a.Service}/{a.Label}"))})");
+            }
+            catch (Exception ex)
+            {
+                WriteCrashLog("LoadAllAccounts FAILED: " + ex);
+                accounts = [];
+            }
+            if (accounts.Count == 0)
+                accounts.Add(new AccountInfo(ServiceType.Claude, new OAuthCredential(), "no-credentials"));
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                clients.AddRange(accounts.Select(a => new ClaudeApiClient(a)));
+
+                // Migrate orphaned history (po načtení účtů)
+                var activeKeys = clients.Select(c => c.AccountKey).OfType<string>().ToList();
+                foreach (var client in clients)
+                    if (client.AccountKey != null)
+                        UsageHistoryStore.Instance.MigrateOrphanedHistory(client.AccountKey, activeKeys);
+
+                _ = primaryWindow.AddAccountsAsync(clients);
+                foreach (var sw in secondaryWindows)
+                    _ = sw.AddAccountsAsync(clients);
+            });
+        });
     }
 
     protected override void OnExit(ExitEventArgs e)
