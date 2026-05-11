@@ -9,6 +9,7 @@ internal sealed class SettingsStore
     private const string RegistryPath = @"Software\ClaudeUsageWidget";
     private const string ChartWindowsSubKey = @"Software\ClaudeUsageWidget\ChartWindows";
     private const string TogglRatesSubKey = @"Software\ClaudeUsageWidget\TogglRates";
+    private const string HiddenLimitsValueName = "HiddenLimits"; // comma-separated label list
 
     public bool NotificationsEnabled { get; set; }
     public bool NotifyOnReset { get; set; }
@@ -39,6 +40,11 @@ internal sealed class SettingsStore
 
     // label → hours override (e.g. "unified-5h" → 48)
     public Dictionary<string, double> ChartWindowHours { get; private set; } = new();
+
+    // Labely jednotlivých rate-limit barů, které uživatel skryl (e.g. "GPT-5.3-Codex-Spark-7d")
+    public HashSet<string> HiddenLimits { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public bool IsLimitHidden(string label) => HiddenLimits.Contains(label);
 
     public string TogglApiKey { get; set; } = "";
     public double TogglMonthlyTargetCzk { get; set; }
@@ -103,6 +109,10 @@ internal sealed class SettingsStore
             if (!string.IsNullOrEmpty(devsRaw))
                 foreach (var id in devsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries))
                     JiraDeveloperAccountIds.Add(id.Trim());
+            var hiddenRaw = key.GetValue(HiddenLimitsValueName) as string;
+            if (!string.IsNullOrEmpty(hiddenRaw))
+                foreach (var lbl in hiddenRaw.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    HiddenLimits.Add(lbl.Trim());
         }
         catch { }
 
@@ -172,6 +182,7 @@ internal sealed class SettingsStore
             key.SetValue("JiraApiToken", JiraApiToken, RegistryValueKind.String);
             key.SetValue("JiraProjectKey", JiraProjectKey, RegistryValueKind.String);
             key.SetValue("JiraDeveloperAccountIds", string.Join(",", JiraDeveloperAccountIds), RegistryValueKind.String);
+            key.SetValue(HiddenLimitsValueName, string.Join(",", HiddenLimits), RegistryValueKind.String);
         }
         catch { }
 

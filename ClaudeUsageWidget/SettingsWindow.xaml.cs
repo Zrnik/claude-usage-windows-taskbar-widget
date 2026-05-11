@@ -11,6 +11,7 @@ public partial class SettingsWindow : Window
     private const string RunRegistryValue = "ClaudeUsageWidget";
     private bool _closing;
     private readonly Dictionary<string, TextBox> _chartWindowBoxes = new();
+    private readonly Dictionary<string, CheckBox> _limitShowChecks = new();
     private readonly Dictionary<long, Control> _togglRateBoxes = new();
 
     public SettingsWindow()
@@ -465,9 +466,21 @@ public partial class SettingsWindow : Window
             var currentHours = settings.ChartWindowHours.TryGetValue(label, out var h)
                 ? h : HistoryChart.GetDefaultHours(label);
 
+            // 3 sloupce: [checkbox show] [label] [hours]
             var grid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+
+            var showCheck = new CheckBox
+            {
+                IsChecked = !settings.IsLimitHidden(label),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Show this rate limit bar"
+            };
+            showCheck.Checked += (_, _) => SaveSettings();
+            showCheck.Unchecked += (_, _) => SaveSettings();
+            Grid.SetColumn(showCheck, 0);
 
             var labelBlock = new TextBlock
             {
@@ -476,7 +489,7 @@ public partial class SettingsWindow : Window
                 FontSize = 10,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(labelBlock, 0);
+            Grid.SetColumn(labelBlock, 1);
 
             var box = new TextBox
             {
@@ -489,13 +502,15 @@ public partial class SettingsWindow : Window
                 HorizontalContentAlignment = HorizontalAlignment.Right
             };
             box.LostFocus += (_, _) => SaveSettings();
-            Grid.SetColumn(box, 1);
+            Grid.SetColumn(box, 2);
 
+            grid.Children.Add(showCheck);
             grid.Children.Add(labelBlock);
             grid.Children.Add(box);
             ChartWindowsPanel.Children.Add(grid);
 
             _chartWindowBoxes[label] = box;
+            _limitShowChecks[label] = showCheck;
         }
     }
 
@@ -549,6 +564,14 @@ public partial class SettingsWindow : Window
                     System.Globalization.CultureInfo.InvariantCulture, out var hours) && hours > 0)
                 settings.ChartWindowHours[label] = hours;
         }
+
+        foreach (var (label, check) in _limitShowChecks)
+        {
+            if (check.IsChecked == true) settings.HiddenLimits.Remove(label);
+            else settings.HiddenLimits.Add(label);
+        }
+        // Změna HiddenLimits → MainWindow musí překreslit bary
+        SettingsStore.RaiseVisibilityChanged();
 
         var targetRaw = (SettingsStore.Instance.IncognitoMode
             ? TogglTargetPasswordBox.Password

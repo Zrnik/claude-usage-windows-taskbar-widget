@@ -54,17 +54,22 @@ public partial class AccountPanel : UserControl
     public void UpdateBars(UsageData data)
     {
         _isLoading = false;
-        EnsureBarCount(data.Limits.Count);
 
-        for (int i = 0; i < data.Limits.Count; i++)
+        // Skryté labely vyfiltrovat — uživatel je vypnul v Settings checkboxem.
+        var visible = data.Limits
+            .Where(l => !SettingsStore.Instance.IsLimitHidden(l.Label))
+            .ToList();
+        EnsureBarCount(visible.Count);
+
+        for (int i = 0; i < visible.Count; i++)
         {
-            var limit = data.Limits[i];
+            var limit = visible[i];
             var (bar, pctText, timeText, container) = _bars[i];
 
             bar.Value = limit.Utilization;
             SetBarColor(GetBarIndicator(bar), limit.Utilization);
 
-            bool showText = data.Limits.Count <= 4;
+            bool showText = visible.Count <= 4;
             pctText.Text = showText ? $"{limit.Utilization:0}%" : "";
             timeText.Text = showText ? TimeFormatter.FormatResetTime(limit.ResetsAt) : "";
 

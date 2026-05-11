@@ -606,6 +606,11 @@ public partial class MainWindow : Window
                 jira.Panel.ShowLoadingState();
                 _ = ForceRefreshJira();
             }
+
+            // HiddenLimits se mohly změnit — překreslit Claude/Codex bary z cached usage.
+            foreach (var (_, panel, lastUsage) in _accounts)
+                if (lastUsage != null && panel.Visibility == Visibility.Visible)
+                    panel.UpdateBars(lastUsage);
         });
     }
 
