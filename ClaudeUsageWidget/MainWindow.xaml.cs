@@ -239,6 +239,7 @@ public partial class MainWindow : Window
                     if (usage != null)
                     {
                         _accounts[index] = (client, panel, usage);
+                        SettingsStore.Instance.RegisterKnownLabels(client.AccountService, usage);
                         if (panel.Visibility == Visibility.Visible)
                             panel.UpdateBars(usage);
                         _historyStore.Append(client.AccountKey, usage);
@@ -364,6 +365,7 @@ public partial class MainWindow : Window
             if (usage != null)
             {
                 _accounts[i] = (client, panel, usage);
+                SettingsStore.Instance.RegisterKnownLabels(client.AccountService, usage);
                 panel.UpdateBars(usage);
                 _historyStore.Append(client.AccountKey, usage);
                 NotificationService.Instance.CheckAndNotify(client.AccountKey, usage);
@@ -484,6 +486,7 @@ public partial class MainWindow : Window
                 if (usage != null)
                 {
                     _accounts[i] = (client, panel, usage);
+                    SettingsStore.Instance.RegisterKnownLabels(client.AccountService, usage);
                     panel.UpdateBars(usage);
                     _historyStore.Append(client.AccountKey, usage);
                     NotificationService.Instance.CheckAndNotify(client.AccountKey, usage);
@@ -636,6 +639,7 @@ public partial class MainWindow : Window
                 if (client.AccountKey != null && SharedUsage.TryGetValue(client.AccountKey, out var usage))
                 {
                     _accounts[i] = (client, panel, usage);
+                    SettingsStore.Instance.RegisterKnownLabels(client.AccountService, usage);
                     panel.UpdateBars(usage);
                 }
             }
@@ -937,6 +941,7 @@ public partial class MainWindow : Window
         if (usage != null)
         {
             _accounts[index] = (client, panel, usage);
+            SettingsStore.Instance.RegisterKnownLabels(client.AccountService, usage);
             panel.UpdateBars(usage);
             _historyStore.Append(client.AccountKey, usage);
             NotificationService.Instance.CheckAndNotify(client.AccountKey, usage);

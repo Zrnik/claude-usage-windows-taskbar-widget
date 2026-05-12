@@ -48,8 +48,13 @@ public partial class SettingsWindow : Window
         InitTogglUI(settings);
         InitJiraUI(settings);
         ApplyIncognitoVisibility();
+        SettingsStore.KnownLabelsChanged += OnKnownLabelsChanged;
         SettingsStore.IncognitoChanged += OnIncognitoChangedFromOutside;
-        Closed += (_, _) => SettingsStore.IncognitoChanged -= OnIncognitoChangedFromOutside;
+        Closed += (_, _) =>
+        {
+            SettingsStore.KnownLabelsChanged -= OnKnownLabelsChanged;
+            SettingsStore.IncognitoChanged -= OnIncognitoChangedFromOutside;
+        };
 
         TogglRefreshButton.Click += (_, _) => SettingsStore.RaiseTogglRefreshRequested();
         JiraRefreshButton.Click += (_, _) => SettingsStore.RaiseJiraRefreshRequested();
@@ -440,6 +445,16 @@ public partial class SettingsWindow : Window
             _togglRateBoxes[p.Id] = box;
         }
     }
+
+    private void RebuildChartWindowsUI()
+    {
+        ChartWindowsPanel.Children.Clear();
+        _chartWindowBoxes.Clear();
+        _limitShowChecks.Clear();
+        BuildChartWindowsUI(SettingsStore.Instance);
+    }
+
+    private void OnKnownLabelsChanged() => Dispatcher.Invoke(RebuildChartWindowsUI);
 
     private void BuildChartWindowsUI(SettingsStore settings)
     {

@@ -38,13 +38,38 @@ internal sealed class SettingsStore
     public static event Action? JiraRefreshRequested;
     public static void RaiseJiraRefreshRequested() => JiraRefreshRequested?.Invoke();
 
+    public static event Action? KnownLabelsChanged;
+
     // label → hours override (e.g. "unified-5h" → 48)
     public Dictionary<string, double> ChartWindowHours { get; private set; } = new();
 
     // Labely jednotlivých rate-limit barů, které uživatel skryl (e.g. "GPT-5.3-Codex-Spark-7d")
     public HashSet<string> HiddenLimits { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    // Runtime-discovered labels from the currently rendered widget. History is only
+    // written after a successful fetch; without this, newly visible Codex bars could
+    // be present in the widget but absent from Settings until a later restart/reopen.
+    private readonly Dictionary<string, string> _runtimeKnownLabels = new(StringComparer.OrdinalIgnoreCase);
+
     public bool IsLimitHidden(string label) => HiddenLimits.Contains(label);
+
+    public void RegisterKnownLabels(ServiceType service, UsageData usage)
+    {
+        var prefix = service == ServiceType.Codex ? "Codex" : "Claude";
+        var changed = false;
+        foreach (var limit in usage.Limits)
+        {
+            var display = $"{prefix} / {limit.Label}";
+            if (_runtimeKnownLabels.TryGetValue(limit.Label, out var current) && current == display)
+                continue;
+
+            _runtimeKnownLabels[limit.Label] = display;
+            changed = true;
+        }
+
+        if (changed)
+            KnownLabelsChanged?.Invoke();
+    }
 
     public string TogglApiKey { get; set; } = "";
     public double TogglMonthlyTargetCzk { get; set; }
@@ -224,6 +249,10 @@ internal sealed class SettingsStore
     public IReadOnlyList<(string Label, string Display)> GetKnownLabels()
     {
         var result = new Dictionary<string, string>();
+
+        // From labels already rendered in this process (covers fresh Codex bars before history reload)
+        foreach (var (label, display) in _runtimeKnownLabels)
+            result.TryAdd(label, display);
 
         // From registry overrides
         foreach (var label in ChartWindowHours.Keys)
