@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
+  systemctl --user disable --now claude-usage-widget.service >/dev/null 2>&1 || true
+  if command -v kpackagetool6 >/dev/null 2>&1; then
+    kpackagetool6 --type Plasma/Applet --remove org.zrnik.claude-usage-widget >/dev/null 2>&1 || true
+  fi
+fi
+
+exit 0

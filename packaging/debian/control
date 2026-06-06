@@ -1,0 +1,10 @@
+Package: claude-usage-widget
+Version: 0.2.12
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Stepan Zrnik
+Depends: libc6, kpackagetool6 | plasma-workspace
+Description: KDE Plasma widget for Claude, Codex, Toggl and JIRA usage
+ A native KDE Plasma widget backed by a local daemon. It shows Claude and
+ Codex rate limits, Toggl earnings progress, and JIRA sprint/ranking status.

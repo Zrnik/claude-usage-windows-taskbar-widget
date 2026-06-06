@@ -1,0 +1,13 @@
+[Unit]
+Description=Claude Usage Widget daemon
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon
+Restart=on-failure
+RestartSec=5
+Environment=CLAUDE_USAGE_WIDGET_PORT=43175
+
+[Install]
+WantedBy=default.target
