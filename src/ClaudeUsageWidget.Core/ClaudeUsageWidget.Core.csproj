@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\ClaudeUsageWidget\ClaudeApiClient.cs" Link="Api\ClaudeApiClient.cs" />
+    <Compile Include="..\..\ClaudeUsageWidget\CredentialStore.cs" Link="Api\CredentialStore.cs" />
+    <Compile Include="..\..\ClaudeUsageWidget\JiraApiClient.cs" Link="Api\JiraApiClient.cs" />
+    <Compile Include="..\..\ClaudeUsageWidget\Pace.cs" Link="Logic\Pace.cs" />
+    <Compile Include="..\..\ClaudeUsageWidget\TogglApiClient.cs" Link="Api\TogglApiClient.cs" />
+    <Compile Include="..\..\ClaudeUsageWidget\UsagePrediction.cs" Link="Logic\UsagePrediction.cs" />
+  </ItemGroup>
+
+</Project>

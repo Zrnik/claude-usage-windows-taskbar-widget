@@ -5,6 +5,10 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClaudeUsageWidget", "ClaudeUsageWidget\ClaudeUsageWidget.csproj", "{4D6CD5A0-4F94-48EC-8A89-E4FEAD192FB6}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ClaudeUsageWidget.Core", "src\ClaudeUsageWidget.Core\ClaudeUsageWidget.Core.csproj", "{B58A2589-98E3-45E3-A9EA-0217D3BA6001}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ClaudeUsageWidget.LinuxDaemon", "src\ClaudeUsageWidget.LinuxDaemon\ClaudeUsageWidget.LinuxDaemon.csproj", "{B8457593-40C0-4200-8E29-C3F9D620102F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -25,5 +29,21 @@ Global
 		{4D6CD5A0-4F94-48EC-8A89-E4FEAD192FB6}.Release|ARM64.ActiveCfg = Release|ARM64
 		{4D6CD5A0-4F94-48EC-8A89-E4FEAD192FB6}.Release|ARM64.Build.0 = Release|ARM64
 		{4D6CD5A0-4F94-48EC-8A89-E4FEAD192FB6}.Release|ARM64.Deploy.0 = Release|ARM64
+		{B58A2589-98E3-45E3-A9EA-0217D3BA6001}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B58A2589-98E3-45E3-A9EA-0217D3BA6001}.Debug|x64.Build.0 = Debug|Any CPU
+		{B58A2589-98E3-45E3-A9EA-0217D3BA6001}.Release|x64.ActiveCfg = Release|Any CPU
+		{B58A2589-98E3-45E3-A9EA-0217D3BA6001}.Release|x64.Build.0 = Release|Any CPU
+		{B58A2589-98E3-45E3-A9EA-0217D3BA6001}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{B58A2589-98E3-45E3-A9EA-0217D3BA6001}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{B58A2589-98E3-45E3-A9EA-0217D3BA6001}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{B58A2589-98E3-45E3-A9EA-0217D3BA6001}.Release|ARM64.Build.0 = Release|Any CPU
+		{B8457593-40C0-4200-8E29-C3F9D620102F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B8457593-40C0-4200-8E29-C3F9D620102F}.Debug|x64.Build.0 = Debug|Any CPU
+		{B8457593-40C0-4200-8E29-C3F9D620102F}.Release|x64.ActiveCfg = Release|Any CPU
+		{B8457593-40C0-4200-8E29-C3F9D620102F}.Release|x64.Build.0 = Release|Any CPU
+		{B8457593-40C0-4200-8E29-C3F9D620102F}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{B8457593-40C0-4200-8E29-C3F9D620102F}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{B8457593-40C0-4200-8E29-C3F9D620102F}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{B8457593-40C0-4200-8E29-C3F9D620102F}.Release|ARM64.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
