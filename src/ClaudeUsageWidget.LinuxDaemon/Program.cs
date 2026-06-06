@@ -239,6 +239,7 @@ internal sealed class AccountState
     public string CredentialPath { get; set; } = "";
     public UsageData? Usage { get; set; }
     public string? LastError { get; set; }
+    public IReadOnlyList<HistoryRecord> History { get; set; } = [];
 
     public static AccountState From(ClaudeApiClient client, UsageData? usage) => new()
     {
@@ -246,7 +247,8 @@ internal sealed class AccountState
         AccountKey = client.AccountKey ?? "",
         CredentialPath = client.CredentialPath,
         Usage = usage,
-        LastError = client.LastError
+        LastError = client.LastError,
+        History = client.AccountKey != null ? UsageHistoryStore.Instance.GetHistory(client.AccountKey) : []
     };
 }
 
@@ -256,6 +258,7 @@ internal sealed class ServiceState<T>
     public string Label { get; set; } = "";
     public T? Usage { get; set; }
     public string? LastError { get; set; }
+    public object? History { get; set; }
     public bool HasCachedData => Usage != null;
 
     public static ServiceState<T> From(string service, string label, T? usage, string? error) => new()
@@ -263,6 +266,7 @@ internal sealed class ServiceState<T>
         Service = service,
         Label = label,
         Usage = usage,
-        LastError = error
+        LastError = error,
+        History = service == "jira" ? JiraHistoryStore.Instance.GetLastDays(30) : null
     };
 }

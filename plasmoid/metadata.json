@@ -1,0 +1,18 @@
+{
+  "KPlugin": {
+    "Id": "org.zrnik.claude-usage-widget",
+    "Name": "Claude Usage Widget",
+    "Description": "Claude, Codex, Toggl and JIRA usage widget for KDE Plasma",
+    "Version": "0.2.12",
+    "Authors": [
+      {
+        "Name": "Stepan Zrnik"
+      }
+    ],
+    "License": "MIT",
+    "Category": "System Information",
+    "Icon": "applications-development"
+  },
+  "KPackageStructure": "Plasma/Applet",
+  "X-Plasma-API-Minimum-Version": "6.0"
+}
