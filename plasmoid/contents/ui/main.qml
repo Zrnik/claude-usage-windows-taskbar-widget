@@ -96,6 +96,7 @@ PlasmoidItem {
         PopupShell {
             id: popup
             parent: compactRoot
+            panelLocation: Plasmoid.location
             content: [
                 Loader {
                     id: popupLoader

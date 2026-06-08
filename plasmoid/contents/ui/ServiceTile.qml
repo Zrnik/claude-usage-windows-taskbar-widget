@@ -59,6 +59,7 @@ Item {
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
+        acceptedButtons: Qt.LeftButton
         onEntered: root.hovered(root)
         onExited: root.unhovered()
         onDoubleClicked: root.forceRefresh()
