@@ -11,6 +11,7 @@ Item {
     property int fontSize: 9
 
     height: 12
+    clip: true
 
     Rectangle {
         anchors.fill: parent
@@ -30,6 +31,8 @@ Item {
     Text {
         anchors.centerIn: parent
         width: parent.width
+        height: parent.height
+        visible: root.centerText !== "" && root.leftText === "" && root.rightText === ""
         text: root.centerText
         color: Style.text
         font.pixelSize: root.fontSize
@@ -38,13 +41,12 @@ Item {
         elide: Text.ElideRight
     }
 
-    Grid {
+    Row {
         anchors.fill: parent
-        columns: 3
         visible: root.leftText !== "" || root.rightText !== ""
 
         Text {
-            width: root.width * 0.35
+            width: root.width * 0.42
             height: root.height
             text: root.leftText
             color: Style.text
@@ -55,9 +57,9 @@ Item {
             minimumPixelSize: 6
             fontSizeMode: Text.Fit
         }
-        Item { width: root.width * 0.20; height: root.height }
+        Item { width: root.width * 0.12; height: root.height }
         Text {
-            width: root.width * 0.45
+            width: root.width * 0.46
             height: root.height
             text: root.rightText
             color: Style.text

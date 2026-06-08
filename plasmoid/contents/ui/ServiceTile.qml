@@ -36,16 +36,20 @@ Item {
 
         Column {
             id: barColumn
+            readonly property int barCount: Math.max(1, root.bars.length)
+            readonly property int gap: root.bars.length <= 2 ? 3 : root.bars.length <= 4 ? 2 : 1
+            readonly property int barHeight: Math.max(7, Math.floor((Math.max(8, root.height - 8) - Math.max(0, barCount - 1) * gap) / barCount))
             width: Math.max(0, root.width - 28)
-            height: root.height - 10
+            height: barCount * barHeight + Math.max(0, barCount - 1) * gap
             anchors.verticalCenter: parent.verticalCenter
-            spacing: root.bars.length <= 2 ? 5 : root.bars.length <= 4 ? 3 : 2
+            spacing: gap
 
             Repeater {
                 model: root.bars
                 delegate: ProgressBarLite {
                     width: barColumn.width
-                    height: (barColumn.height - Math.max(0, root.bars.length - 1) * barColumn.spacing) / Math.max(1, root.bars.length)
+                    height: barColumn.barHeight
+                    fontSize: Math.max(7, Math.min(9, Math.floor(barColumn.barHeight * 0.75)))
                     value: modelData.value
                     fillColor: root.errorText ? Style.maroon : modelData.color
                     leftText: modelData.leftText || ""

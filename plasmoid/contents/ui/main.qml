@@ -12,34 +12,36 @@ PlasmoidItem {
     property var activeTile: null
     property string activeKind: ""
     property int activeIndex: -1
-    readonly property int panelHeight: 48
+    readonly property int fallbackPanelHeight: 36
     readonly property int panelWidth: compactWidth()
 
     width: panelWidth
-    height: panelHeight
+    implicitHeight: fallbackPanelHeight
     Layout.minimumWidth: panelWidth
     Layout.preferredWidth: panelWidth
     Layout.maximumWidth: panelWidth
-    Layout.minimumHeight: panelHeight
-    Layout.preferredHeight: panelHeight
+    Layout.minimumHeight: 24
+    Layout.preferredHeight: fallbackPanelHeight
+    Layout.fillHeight: true
     Plasmoid.status: panelWidth > 1 ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
     preferredRepresentation: fullRepresentation
     fullRepresentation: Item {
         id: compactRoot
         width: root.panelWidth
-        height: root.panelHeight
+        height: root.height > 0 ? root.height : root.fallbackPanelHeight
         implicitWidth: root.panelWidth
-        implicitHeight: root.panelHeight
+        implicitHeight: root.fallbackPanelHeight
         Layout.minimumWidth: root.panelWidth
         Layout.preferredWidth: root.panelWidth
         Layout.maximumWidth: root.panelWidth
-        Layout.minimumHeight: root.panelHeight
-        Layout.preferredHeight: root.panelHeight
+        Layout.minimumHeight: 24
+        Layout.preferredHeight: root.fallbackPanelHeight
+        Layout.fillHeight: true
 
         Row {
             id: row
             width: root.panelWidth
-            height: root.panelHeight
+            height: compactRoot.height
             spacing: 0
 
             Repeater {
@@ -49,7 +51,7 @@ PlasmoidItem {
                     iconSource: modelData.service === "codex" ? "../images/codex-logo.png" : "../images/claude-logo.png"
                     bars: modelData.bars
                     errorText: modelData.errorText
-                    onHovered: {
+                    onHovered: function(tile) {
                         root.activeTile = tile
                         root.activeKind = "account"
                         root.activeIndex = modelData.index
@@ -67,7 +69,7 @@ PlasmoidItem {
                 data: root.daemonState && root.daemonState.toggl ? root.daemonState.toggl.usage : null
                 incognito: root.daemonState && root.daemonState.settings ? root.daemonState.settings.incognitoMode : false
                 errorText: root.daemonState && root.daemonState.toggl ? root.daemonState.toggl.lastError || "" : ""
-                onHovered: {
+                onHovered: function(tile) {
                     root.activeTile = tile
                     root.activeKind = "toggl"
                     popupLoader.sourceComponent = togglPopupComponent
@@ -82,7 +84,7 @@ PlasmoidItem {
                 tileWidth: root.daemonState && root.daemonState.settings ? root.daemonState.settings.jiraWidth : 170
                 data: root.daemonState && root.daemonState.jira ? root.daemonState.jira.usage : null
                 errorText: root.daemonState && root.daemonState.jira ? root.daemonState.jira.lastError || "" : ""
-                onHovered: {
+                onHovered: function(tile) {
                     root.activeTile = tile
                     root.activeKind = "jira"
                     popupLoader.sourceComponent = jiraPopupComponent
