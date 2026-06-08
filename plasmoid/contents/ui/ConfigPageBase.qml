@@ -7,6 +7,9 @@ ScrollView {
     id: root
     property var daemonState: null
     property var settings: daemonState ? daemonState.settings : null
+    property int cfg_daemonPort: 43175
+    property int cfg_daemonPortDefault: 43175
+    property string title: ""
     signal loaded()
 
     contentWidth: availableWidth

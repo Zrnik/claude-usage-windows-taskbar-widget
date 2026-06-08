@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
 import "../code/api.js" as Api
 import "Format.js" as Format
@@ -11,16 +12,34 @@ PlasmoidItem {
     property var activeTile: null
     property string activeKind: ""
     property int activeIndex: -1
+    readonly property int panelHeight: 48
+    readonly property int panelWidth: compactWidth()
 
-    preferredRepresentation: compactRepresentation
-    compactRepresentation: Item {
+    width: panelWidth
+    height: panelHeight
+    Layout.minimumWidth: panelWidth
+    Layout.preferredWidth: panelWidth
+    Layout.maximumWidth: panelWidth
+    Layout.minimumHeight: panelHeight
+    Layout.preferredHeight: panelHeight
+    Plasmoid.status: panelWidth > 1 ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
+    preferredRepresentation: fullRepresentation
+    fullRepresentation: Item {
         id: compactRoot
-        implicitWidth: row.implicitWidth
-        implicitHeight: 48
+        width: root.panelWidth
+        height: root.panelHeight
+        implicitWidth: root.panelWidth
+        implicitHeight: root.panelHeight
+        Layout.minimumWidth: root.panelWidth
+        Layout.preferredWidth: root.panelWidth
+        Layout.maximumWidth: root.panelWidth
+        Layout.minimumHeight: root.panelHeight
+        Layout.preferredHeight: root.panelHeight
 
         Row {
             id: row
-            anchors.fill: parent
+            width: root.panelWidth
+            height: root.panelHeight
             spacing: 0
 
             Repeater {
@@ -135,7 +154,13 @@ PlasmoidItem {
 
     function accountTiles() {
         if (!root.daemonState || !root.daemonState.accounts || !root.daemonState.settings)
-            return []
+            return [{
+                index: -1,
+                service: "claude",
+                width: 170,
+                bars: [{ value: 0, color: Style.green, centerText: "|" }],
+                errorText: ""
+            }]
         var out = []
         for (var i = 0; i < root.daemonState.accounts.length; i++) {
             var account = root.daemonState.accounts[i]
@@ -170,6 +195,20 @@ PlasmoidItem {
             })
         }
         return out
+    }
+
+    function compactWidth() {
+        if (!root.daemonState || !root.daemonState.settings)
+            return 170
+        var total = 0
+        var tiles = accountTiles()
+        for (var i = 0; i < tiles.length; i++)
+            total += Number(tiles[i].width || 0)
+        if (showToggl())
+            total += Number(root.daemonState.settings.togglWidth || 170)
+        if (showJira())
+            total += Number(root.daemonState.settings.jiraWidth || 170)
+        return Math.max(1, total)
     }
 
     function showToggl() {
