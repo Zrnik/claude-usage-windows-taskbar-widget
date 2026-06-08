@@ -4,7 +4,7 @@ import "Format.js" as Format
 Column {
     id: root
     property var account: null
-    property var state: null
+    property var daemonState: null
     width: 260
     spacing: 0
 
@@ -54,7 +54,7 @@ Column {
 
             Text {
                 width: parent.width
-                text: "History (" + Format.historyWindowLabel(modelData.label, root.state && root.state.settings ? root.state.settings.chartWindowHours : {}) + ")"
+                text: "History (" + Format.historyWindowLabel(modelData.label, root.daemonState && root.daemonState.settings ? root.daemonState.settings.chartWindowHours : {}) + ")"
                 color: Style.dim
                 font.pixelSize: 8
                 height: 14
@@ -64,7 +64,7 @@ Column {
                 width: parent.width
                 records: modelData.history || []
                 label: modelData.label
-                overrides: root.state && root.state.settings ? root.state.settings.chartWindowHours : {}
+                overrides: root.daemonState && root.daemonState.settings ? root.daemonState.settings.chartWindowHours : {}
             }
 
             Text {
@@ -114,7 +114,7 @@ Column {
         }
         Text {
             width: 50
-            text: "v" + (root.state ? root.state.version : "")
+            text: "v" + (root.daemonState ? root.daemonState.version : "")
             color: Style.version
             font.pixelSize: 8
             horizontalAlignment: Text.AlignRight
@@ -124,7 +124,7 @@ Column {
     function visibleLimits() {
         if (!account || !account.usage || !account.usage.limits)
             return []
-        var hidden = state && state.settings && state.settings.hiddenLimits ? state.settings.hiddenLimits : []
+        var hidden = daemonState && daemonState.settings && daemonState.settings.hiddenLimits ? daemonState.settings.hiddenLimits : []
         var out = []
         for (var i = 0; i < account.usage.limits.length; i++) {
             if (hidden.indexOf(account.usage.limits[i].label) >= 0)

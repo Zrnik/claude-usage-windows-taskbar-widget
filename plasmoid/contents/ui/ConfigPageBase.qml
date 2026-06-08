@@ -5,8 +5,8 @@ import "../code/api.js" as Api
 
 ScrollView {
     id: root
-    property var state: null
-    property var settings: state ? state.settings : null
+    property var daemonState: null
+    property var settings: daemonState ? daemonState.settings : null
     signal loaded()
 
     contentWidth: availableWidth
@@ -16,7 +16,7 @@ ScrollView {
     function reload() {
         Api.loadState(function(data, error) {
             if (data) {
-                root.state = data
+                root.daemonState = data
                 root.loaded()
             }
         })

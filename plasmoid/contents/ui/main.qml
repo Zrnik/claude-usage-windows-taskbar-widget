@@ -7,7 +7,7 @@ import "Format.js" as Format
 
 PlasmoidItem {
     id: root
-    property var state: null
+    property var daemonState: null
     property var activeTile: null
     property string activeKind: ""
     property int activeIndex: -1
@@ -44,10 +44,10 @@ PlasmoidItem {
 
             TogglTile {
                 visible: showToggl()
-                tileWidth: root.state && root.state.settings ? root.state.settings.togglWidth : 170
-                data: root.state && root.state.toggl ? root.state.toggl.usage : null
-                incognito: root.state && root.state.settings ? root.state.settings.incognitoMode : false
-                errorText: root.state && root.state.toggl ? root.state.toggl.lastError || "" : ""
+                tileWidth: root.daemonState && root.daemonState.settings ? root.daemonState.settings.togglWidth : 170
+                data: root.daemonState && root.daemonState.toggl ? root.daemonState.toggl.usage : null
+                incognito: root.daemonState && root.daemonState.settings ? root.daemonState.settings.incognitoMode : false
+                errorText: root.daemonState && root.daemonState.toggl ? root.daemonState.toggl.lastError || "" : ""
                 onHovered: {
                     root.activeTile = tile
                     root.activeKind = "toggl"
@@ -60,9 +60,9 @@ PlasmoidItem {
 
             JiraTile {
                 visible: showJira()
-                tileWidth: root.state && root.state.settings ? root.state.settings.jiraWidth : 170
-                data: root.state && root.state.jira ? root.state.jira.usage : null
-                errorText: root.state && root.state.jira ? root.state.jira.lastError || "" : ""
+                tileWidth: root.daemonState && root.daemonState.settings ? root.daemonState.settings.jiraWidth : 170
+                data: root.daemonState && root.daemonState.jira ? root.daemonState.jira.usage : null
+                errorText: root.daemonState && root.daemonState.jira ? root.daemonState.jira.lastError || "" : ""
                 onHovered: {
                     root.activeTile = tile
                     root.activeKind = "jira"
@@ -97,7 +97,7 @@ PlasmoidItem {
         interval: 1000
         running: true
         repeat: true
-        onTriggered: if (!root.state) pollState()
+        onTriggered: if (!root.daemonState) pollState()
     }
 
     Component.onCompleted: pollState()
@@ -105,45 +105,45 @@ PlasmoidItem {
     Component {
         id: accountPopupComponent
         ClaudeCodexPopup {
-            account: root.state && root.activeIndex >= 0 ? root.state.accounts[root.activeIndex] : null
-            state: root.state
+            account: root.daemonState && root.activeIndex >= 0 ? root.daemonState.accounts[root.activeIndex] : null
+            daemonState: root.daemonState
         }
     }
 
     Component {
         id: togglPopupComponent
         TogglPopup {
-            service: root.state ? root.state.toggl : null
-            state: root.state
+            service: root.daemonState ? root.daemonState.toggl : null
+            daemonState: root.daemonState
         }
     }
 
     Component {
         id: jiraPopupComponent
         JiraPopup {
-            service: root.state ? root.state.jira : null
-            state: root.state
+            service: root.daemonState ? root.daemonState.jira : null
+            daemonState: root.daemonState
         }
     }
 
     function pollState() {
         Api.loadState(function(data, error) {
             if (data)
-                root.state = data
+                root.daemonState = data
         })
     }
 
     function accountTiles() {
-        if (!root.state || !root.state.accounts || !root.state.settings)
+        if (!root.daemonState || !root.daemonState.accounts || !root.daemonState.settings)
             return []
         var out = []
-        for (var i = 0; i < root.state.accounts.length; i++) {
-            var account = root.state.accounts[i]
-            if (account.service === "claude" && !root.state.settings.showClaude)
+        for (var i = 0; i < root.daemonState.accounts.length; i++) {
+            var account = root.daemonState.accounts[i]
+            if (account.service === "claude" && !root.daemonState.settings.showClaude)
                 continue
-            if (account.service === "codex" && !root.state.settings.showCodex)
+            if (account.service === "codex" && !root.daemonState.settings.showCodex)
                 continue
-            var hidden = root.state.settings.hiddenLimits || []
+            var hidden = root.daemonState.settings.hiddenLimits || []
             var visibleLimits = account.usage && account.usage.limits ? account.usage.limits.filter(function(l) {
                 return hidden.indexOf(l.label) < 0
             }) : []
@@ -164,7 +164,7 @@ PlasmoidItem {
             out.push({
                 index: i,
                 service: account.service,
-                width: account.service === "codex" ? root.state.settings.codexWidth : root.state.settings.claudeWidth,
+                width: account.service === "codex" ? root.daemonState.settings.codexWidth : root.daemonState.settings.claudeWidth,
                 bars: bars,
                 errorText: account.lastError || ""
             })
@@ -173,15 +173,15 @@ PlasmoidItem {
     }
 
     function showToggl() {
-        return root.state && root.state.settings && root.state.settings.showToggl &&
-            (root.state.settings.togglApiKey || (root.state.toggl && root.state.toggl.usage))
+        return root.daemonState && root.daemonState.settings && root.daemonState.settings.showToggl &&
+            (root.daemonState.settings.togglApiKey || (root.daemonState.toggl && root.daemonState.toggl.usage))
     }
 
     function showJira() {
-        if (!root.state || !root.state.settings || !root.state.settings.showJira)
+        if (!root.daemonState || !root.daemonState.settings || !root.daemonState.settings.showJira)
             return false
-        var s = root.state.settings
+        var s = root.daemonState.settings
         return (s.jiraUrl && s.jiraEmail && s.jiraApiToken && s.jiraProjectKey) ||
-            (root.state.jira && root.state.jira.usage)
+            (root.daemonState.jira && root.daemonState.jira.usage)
     }
 }

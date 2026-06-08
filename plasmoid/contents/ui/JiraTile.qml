@@ -14,9 +14,8 @@ Item {
     width: tileWidth
     height: parent ? parent.height : 48
 
-    Grid {
+    Row {
         anchors.fill: parent
-        columns: 3
         Item {
             width: 24
             height: root.height
@@ -26,7 +25,7 @@ Item {
         Column {
             width: Math.max(0, root.width - 28)
             height: root.height - 10
-            y: 5
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 2
 
             ProgressBarLite {

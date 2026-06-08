@@ -8,6 +8,7 @@ ExecStart=/usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon
 Restart=on-failure
 RestartSec=5
 Environment=CLAUDE_USAGE_WIDGET_PORT=43175
+Environment=DOTNET_USE_POLLING_FILE_WATCHER=1
 
 [Install]
 WantedBy=default.target

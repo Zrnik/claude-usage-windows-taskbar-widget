@@ -16,7 +16,7 @@ ConfigPageBase {
             ColumnLayout {
                 anchors.fill: parent
                 Repeater {
-                    model: root.state && root.state.accounts ? root.state.accounts : []
+                    model: root.daemonState && root.daemonState.accounts ? root.daemonState.accounts : []
                     delegate: Label {
                         Layout.fillWidth: true
                         text: modelData.service + ": " + (modelData.credentialPath || i18n("No credentials"))
@@ -36,7 +36,7 @@ ConfigPageBase {
             ColumnLayout {
                 anchors.fill: parent
                 Repeater {
-                    model: root.state && root.state.knownLabels ? root.state.knownLabels : []
+                    model: root.daemonState && root.daemonState.knownLabels ? root.daemonState.knownLabels : []
                     delegate: RowLayout {
                         Layout.fillWidth: true
                         CheckBox {

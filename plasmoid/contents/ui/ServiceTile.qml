@@ -15,10 +15,9 @@ Item {
     width: tileWidth
     height: parent ? parent.height : 48
 
-    Grid {
+    Row {
         anchors.fill: parent
         anchors.margins: 0
-        columns: 3
 
         Item {
             width: 24
@@ -39,7 +38,7 @@ Item {
             id: barColumn
             width: Math.max(0, root.width - 28)
             height: root.height - 10
-            y: 5
+            anchors.verticalCenter: parent.verticalCenter
             spacing: root.bars.length <= 2 ? 5 : root.bars.length <= 4 ? 3 : 2
 
             Repeater {

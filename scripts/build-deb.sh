@@ -34,5 +34,5 @@ chmod 0755 "$STAGE/usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon"
 sed -i "s/^Version:.*/Version: ${VERSION}/" "$STAGE/DEBIAN/control"
 sed -i "s/^Architecture:.*/Architecture: ${ARCH}/" "$STAGE/DEBIAN/control"
 
-dpkg-deb --build "$STAGE" "$ROOT/dist/${PKG}_${VERSION}_${ARCH}.deb"
+dpkg-deb --root-owner-group --build "$STAGE" "$ROOT/dist/${PKG}_${VERSION}_${ARCH}.deb"
 echo "$ROOT/dist/${PKG}_${VERSION}_${ARCH}.deb"

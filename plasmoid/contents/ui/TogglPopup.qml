@@ -4,8 +4,8 @@ import "Format.js" as Format
 Column {
     id: root
     property var service: null
-    property var state: null
-    property bool incognito: state && state.settings ? state.settings.incognitoMode : false
+    property var daemonState: null
+    property bool incognito: daemonState && daemonState.settings ? daemonState.settings.incognitoMode : false
     width: 260
     spacing: 0
 
@@ -89,7 +89,7 @@ Column {
     Row {
         width: parent.width
         Text { width: parent.width - 50; text: "Toggl Track"; color: Style.dim; font.pixelSize: 8 }
-        Text { width: 50; text: "v" + (state ? state.version : ""); color: Style.version; font.pixelSize: 8; horizontalAlignment: Text.AlignRight }
+        Text { width: 50; text: "v" + (daemonState ? daemonState.version : ""); color: Style.version; font.pixelSize: 8; horizontalAlignment: Text.AlignRight }
     }
 
     function usage() { return service ? service.usage : null }

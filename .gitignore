@@ -7,6 +7,7 @@ obj/
 /_ReSharper.Caches/
 AppPackages/
 BundleArtifacts/
+dist/
 riderModule.iml
 *.user
 *.suo

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using ClaudeUsageWidgetProvider;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateSlimBuilder(args);
 builder.WebHost.UseUrls($"http://127.0.0.1:{DaemonRuntime.ResolvePort()}");
 
 var app = builder.Build();
