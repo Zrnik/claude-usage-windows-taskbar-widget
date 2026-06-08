@@ -1,12 +1,6 @@
 #!/bin/sh
 set -e
 
-systemctl --user daemon-reload >/dev/null 2>&1 || true
-systemctl --user enable --now claude-usage-widget.service >/dev/null 2>&1 || true
-
-if command -v kpackagetool6 >/dev/null 2>&1; then
-  kpackagetool6 --type Plasma/Applet --upgrade /usr/share/plasma/plasmoids/org.zrnik.claude-usage-widget >/dev/null 2>&1 || \
-  kpackagetool6 --type Plasma/Applet --install /usr/share/plasma/plasmoids/org.zrnik.claude-usage-widget >/dev/null 2>&1 || true
-fi
+systemctl --global enable claude-usage-widget.service >/dev/null 2>&1 || true
 
 exit 0
