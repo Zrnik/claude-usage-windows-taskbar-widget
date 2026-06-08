@@ -11,7 +11,7 @@ Item {
     property int fontSize: 9
 
     height: 12
-    clip: true
+    clip: false
 
     Rectangle {
         anchors.fill: parent
@@ -31,7 +31,7 @@ Item {
     Text {
         anchors.centerIn: parent
         width: parent.width
-        height: parent.height
+        height: implicitHeight
         visible: root.centerText !== "" && root.leftText === "" && root.rightText === ""
         text: root.centerText
         color: Style.text
@@ -42,32 +42,37 @@ Item {
     }
 
     Row {
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        height: parent.height
         visible: root.leftText !== "" || root.rightText !== ""
 
         Text {
             width: root.width * 0.42
-            height: root.height
+            height: implicitHeight
+            anchors.verticalCenter: parent.verticalCenter
             text: root.leftText
             color: Style.text
             font.pixelSize: root.fontSize
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
-            minimumPixelSize: 6
+            minimumPixelSize: 4
             fontSizeMode: Text.Fit
         }
         Item { width: root.width * 0.12; height: root.height }
         Text {
             width: root.width * 0.46
-            height: root.height
+            height: implicitHeight
+            anchors.verticalCenter: parent.verticalCenter
             text: root.rightText
             color: Style.text
             font.pixelSize: root.fontSize
             horizontalAlignment: Text.AlignLeft
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
-            minimumPixelSize: 6
+            minimumPixelSize: 4
             fontSizeMode: Text.Fit
         }
     }

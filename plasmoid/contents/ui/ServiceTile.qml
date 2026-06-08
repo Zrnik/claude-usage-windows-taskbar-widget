@@ -49,7 +49,7 @@ Item {
                 delegate: ProgressBarLite {
                     width: barColumn.width
                     height: barColumn.barHeight
-                    fontSize: Math.max(7, Math.min(9, Math.floor(barColumn.barHeight * 0.75)))
+                    fontSize: Math.max(5, Math.min(8, Math.floor(barColumn.barHeight * 0.70)))
                     value: modelData.value
                     fillColor: root.errorText ? Style.maroon : modelData.color
                     leftText: modelData.leftText || ""
