@@ -10,14 +10,14 @@ await runtime.StartAsync();
 
 app.MapGet("/health", () => Results.Ok(new { ok = true, version = DaemonRuntime.Version }));
 app.MapGet("/state", () => Results.Json(runtime.GetState(), DaemonRuntime.JsonOptions));
-app.MapGet("/settings", () => Results.Json(SettingsStore.Instance.ToSnapshot(), DaemonRuntime.JsonOptions));
+app.MapGet("/settings", () => Results.Json(SettingsStore.Instance.ToSnapshot(includeSecrets: false), DaemonRuntime.JsonOptions));
 app.MapPost("/settings", (SettingsSnapshot settings) =>
 {
     var previous = SettingsStore.Instance.ToSnapshot();
     SettingsStore.Instance.Apply(settings);
     runtime.RequestStateChanged();
     runtime.RefreshAfterSettingsChange(previous);
-    return Results.Json(SettingsStore.Instance.ToSnapshot(), DaemonRuntime.JsonOptions);
+    return Results.Json(SettingsStore.Instance.ToSnapshot(includeSecrets: false), DaemonRuntime.JsonOptions);
 });
 
 app.MapPost("/refresh/{service}", async (string service) =>
@@ -101,7 +101,7 @@ internal sealed class DaemonRuntime
                 Version = Version,
                 StateVersion = _stateVersion,
                 StartedAt = _startedAt,
-                Settings = SettingsStore.Instance.ToSnapshot(),
+                Settings = SettingsStore.Instance.ToSnapshot(includeSecrets: false),
                 Accounts = _accounts.Select(a => AccountState.From(a.Client, a.Usage)).ToList(),
                 Toggl = ServiceState<TogglUsageData>.From("toggl", "Toggl Track", _togglUsage, _toggl.LastError),
                 Jira = ServiceState<JiraUsageData>.From("jira", "JIRA", _jiraUsage, _jira.LastError),

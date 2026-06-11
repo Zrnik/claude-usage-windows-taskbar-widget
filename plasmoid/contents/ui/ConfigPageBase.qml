@@ -12,6 +12,7 @@ ScrollView {
     property string title: ""
     signal loaded()
 
+    padding: 12
     contentWidth: availableWidth
 
     Component.onCompleted: reload()
@@ -25,11 +26,16 @@ ScrollView {
         })
     }
 
-    function save() {
-        if (!settings)
+    function save(callback) {
+        if (!settings) {
+            if (callback)
+                callback(null, "Settings not loaded")
             return
+        }
         Api.saveSettings(settings, function(data, error) {
             reload()
+            if (callback)
+                callback(data, error)
         })
     }
 }

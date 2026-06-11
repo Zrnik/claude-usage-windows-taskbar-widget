@@ -8,7 +8,7 @@ ConfigPageBase {
     property var projects: []
     property string statusText: ""
 
-    onLoaded: if (root.settings && root.settings.togglApiKey) loadProjects()
+    onLoaded: if (root.settings && root.settings.togglApiKeyConfigured) loadProjects()
 
     ColumnLayout {
         width: root.availableWidth
@@ -27,8 +27,12 @@ ConfigPageBase {
             TextField {
                 Layout.fillWidth: true
                 echoMode: TextInput.Password
-                text: root.settings ? root.settings.togglApiKey : ""
-                onEditingFinished: { root.settings.togglApiKey = text.trim(); root.save(); loadProjects() }
+                text: ""
+                placeholderText: root.settings && root.settings.togglApiKeyConfigured ? i18n("Configured") : ""
+                onEditingFinished: {
+                    root.settings.togglApiKey = text.trim()
+                    saveAndRefresh(loadProjects)
+                }
             }
 
             Label { text: i18n("Monthly target (Kč)") }
@@ -37,14 +41,33 @@ ConfigPageBase {
                 echoMode: root.settings && root.settings.incognitoMode ? TextInput.Password : TextInput.Normal
                 horizontalAlignment: TextInput.AlignRight
                 text: root.settings && root.settings.togglMonthlyTargetCzk > 0 ? root.settings.togglMonthlyTargetCzk : ""
-                onEditingFinished: { root.settings.togglMonthlyTargetCzk = parseFloat(text) || 0; root.save() }
+                onEditingFinished: {
+                    root.settings.togglMonthlyTargetCzk = parseFloat(text) || 0
+                    saveAndRefresh()
+                }
             }
 
             Label { text: i18n("Workday hours (start-end)") }
             RowLayout {
-                TextField { Layout.preferredWidth: 70; horizontalAlignment: TextInput.AlignRight; text: root.settings ? root.settings.workdayStartHour : "9"; onEditingFinished: { root.settings.workdayStartHour = parseFloat(text) || 9; root.save() } }
+                TextField {
+                    Layout.preferredWidth: 70
+                    horizontalAlignment: TextInput.AlignRight
+                    text: root.settings ? root.settings.workdayStartHour : "9"
+                    onEditingFinished: {
+                        root.settings.workdayStartHour = parseFloat(text) || 9
+                        saveAndRefresh()
+                    }
+                }
                 Label { text: "-" }
-                TextField { Layout.preferredWidth: 70; horizontalAlignment: TextInput.AlignRight; text: root.settings ? root.settings.workdayEndHour : "17"; onEditingFinished: { root.settings.workdayEndHour = parseFloat(text) || 17; root.save() } }
+                TextField {
+                    Layout.preferredWidth: 70
+                    horizontalAlignment: TextInput.AlignRight
+                    text: root.settings ? root.settings.workdayEndHour : "17"
+                    onEditingFinished: {
+                        root.settings.workdayEndHour = parseFloat(text) || 17
+                        saveAndRefresh()
+                    }
+                }
             }
         }
 
@@ -74,7 +97,7 @@ ConfigPageBase {
                                     root.settings.togglProjectRates[modelData.id] = rate
                                 else
                                     delete root.settings.togglProjectRates[modelData.id]
-                                root.save()
+                                saveAndRefresh()
                             }
                         }
                     }
@@ -93,6 +116,20 @@ ConfigPageBase {
                 projects = []
                 statusText = "✗ " + error
             }
+        })
+    }
+
+    function saveAndRefresh(afterSave) {
+        root.save(function(data, error) {
+            if (error) {
+                statusText = "✗ " + error
+                return
+            }
+            if (afterSave)
+                afterSave()
+            Api.refresh("toggl", function() {
+                root.reload()
+            })
         })
     }
 }

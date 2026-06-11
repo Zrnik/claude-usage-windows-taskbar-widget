@@ -9,7 +9,7 @@ ConfigPageBase {
     property var users: []
     property string statusText: ""
 
-    onLoaded: if (root.settings && root.settings.jiraUrl && root.settings.jiraEmail && root.settings.jiraApiToken) loadProjects()
+    onLoaded: if (hasJiraConfig()) loadProjects()
 
     ColumnLayout {
         width: root.availableWidth
@@ -25,11 +25,20 @@ ConfigPageBase {
             columns: 2
             Layout.fillWidth: true
             Label { text: i18n("Site URL") }
-            TextField { Layout.fillWidth: true; text: root.settings ? root.settings.jiraUrl : ""; placeholderText: "https://yourcompany.atlassian.net"; onEditingFinished: { root.settings.jiraUrl = text.trim(); root.save(); loadProjects() } }
+            TextField { Layout.fillWidth: true; text: root.settings ? root.settings.jiraUrl : ""; placeholderText: "https://yourcompany.atlassian.net"; onEditingFinished: { root.settings.jiraUrl = text.trim(); root.save(loadProjects) } }
             Label { text: i18n("Email") }
-            TextField { Layout.fillWidth: true; text: root.settings ? root.settings.jiraEmail : ""; onEditingFinished: { root.settings.jiraEmail = text.trim(); root.save(); loadProjects() } }
+            TextField { Layout.fillWidth: true; text: root.settings ? root.settings.jiraEmail : ""; onEditingFinished: { root.settings.jiraEmail = text.trim(); root.save(loadProjects) } }
             Label { text: i18n("API token") }
-            TextField { Layout.fillWidth: true; echoMode: TextInput.Password; text: root.settings ? root.settings.jiraApiToken : ""; onEditingFinished: { root.settings.jiraApiToken = text.trim(); root.save(); loadProjects() } }
+            TextField {
+                Layout.fillWidth: true
+                echoMode: TextInput.Password
+                text: ""
+                placeholderText: root.settings && root.settings.jiraApiTokenConfigured ? i18n("Configured") : ""
+                onEditingFinished: {
+                    root.settings.jiraApiToken = text.trim()
+                    root.save(loadProjects)
+                }
+            }
             Label { text: i18n("Project") }
             ComboBox {
                 Layout.fillWidth: true
@@ -76,7 +85,7 @@ ConfigPageBase {
     }
 
     function loadProjects() {
-        if (!root.settings || !root.settings.jiraUrl || !root.settings.jiraEmail || !root.settings.jiraApiToken)
+        if (!hasJiraConfig())
             return
         statusText = i18n("Validating…")
         Api.loadJiraProjects(function(data, error) {
@@ -106,5 +115,10 @@ ConfigPageBase {
                 statusText = "✗ " + error
             }
         })
+    }
+
+    function hasJiraConfig() {
+        return root.settings && root.settings.jiraUrl && root.settings.jiraEmail &&
+            root.settings.jiraApiTokenConfigured
     }
 }

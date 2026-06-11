@@ -78,7 +78,7 @@ internal sealed class SettingsStore
         return result.Select(kv => (kv.Key, kv.Value)).OrderBy(x => x.Value).ToList();
     }
 
-    public SettingsSnapshot ToSnapshot() => new()
+    public SettingsSnapshot ToSnapshot(bool includeSecrets = true) => new()
     {
         NotificationsEnabled = NotificationsEnabled,
         NotifyOnReset = NotifyOnReset,
@@ -93,14 +93,16 @@ internal sealed class SettingsStore
         JiraWidth = JiraWidth,
         ChartWindowHours = new(ChartWindowHours),
         HiddenLimits = HiddenLimits.ToList(),
-        TogglApiKey = TogglApiKey,
+        TogglApiKey = includeSecrets ? TogglApiKey : "",
+        TogglApiKeyConfigured = !string.IsNullOrWhiteSpace(TogglApiKey),
         TogglMonthlyTargetCzk = TogglMonthlyTargetCzk,
         TogglProjectRates = new(TogglProjectRates),
         WorkdayStartHour = WorkdayStartHour,
         WorkdayEndHour = WorkdayEndHour,
         JiraUrl = JiraUrl,
         JiraEmail = JiraEmail,
-        JiraApiToken = JiraApiToken,
+        JiraApiToken = includeSecrets ? JiraApiToken : "",
+        JiraApiTokenConfigured = !string.IsNullOrWhiteSpace(JiraApiToken),
         JiraProjectKey = JiraProjectKey,
         JiraDeveloperAccountIds = JiraDeveloperAccountIds.ToList()
     };
@@ -123,7 +125,9 @@ internal sealed class SettingsStore
         ChartWindowHours = snapshot.ChartWindowHours.Where(kv => kv.Value > 0)
             .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
         HiddenLimits = new HashSet<string>(snapshot.HiddenLimits, StringComparer.OrdinalIgnoreCase);
-        TogglApiKey = snapshot.TogglApiKey.Trim();
+        var togglApiKey = snapshot.TogglApiKey.Trim();
+        if (!string.IsNullOrEmpty(togglApiKey))
+            TogglApiKey = togglApiKey;
         TogglMonthlyTargetCzk = Math.Max(0, snapshot.TogglMonthlyTargetCzk);
         TogglProjectRates = snapshot.TogglProjectRates.Where(kv => kv.Value > 0)
             .ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -131,7 +135,9 @@ internal sealed class SettingsStore
         WorkdayEndHour = ClampHour(snapshot.WorkdayEndHour, WorkdayEndHour);
         JiraUrl = NormalizeJiraUrl(snapshot.JiraUrl);
         JiraEmail = snapshot.JiraEmail.Trim();
-        JiraApiToken = snapshot.JiraApiToken.Trim();
+        var jiraApiToken = snapshot.JiraApiToken.Trim();
+        if (!string.IsNullOrEmpty(jiraApiToken))
+            JiraApiToken = jiraApiToken;
         JiraProjectKey = snapshot.JiraProjectKey.Trim();
         JiraDeveloperAccountIds = new HashSet<string>(snapshot.JiraDeveloperAccountIds);
 
@@ -238,6 +244,7 @@ internal sealed class SettingsSnapshot
     public Dictionary<string, double> ChartWindowHours { get; set; } = new();
     public List<string> HiddenLimits { get; set; } = [];
     public string TogglApiKey { get; set; } = "";
+    public bool TogglApiKeyConfigured { get; set; }
     public double TogglMonthlyTargetCzk { get; set; }
     public Dictionary<long, double> TogglProjectRates { get; set; } = new();
     public double WorkdayStartHour { get; set; } = 9.0;
@@ -245,6 +252,7 @@ internal sealed class SettingsSnapshot
     public string JiraUrl { get; set; } = "";
     public string JiraEmail { get; set; } = "";
     public string JiraApiToken { get; set; } = "";
+    public bool JiraApiTokenConfigured { get; set; }
     public string JiraProjectKey { get; set; } = "";
     public List<string> JiraDeveloperAccountIds { get; set; } = [];
 }

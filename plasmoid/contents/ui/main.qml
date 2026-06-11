@@ -24,6 +24,21 @@ PlasmoidItem {
     Layout.preferredHeight: fallbackPanelHeight
     Layout.fillHeight: true
     Plasmoid.status: panelWidth > 1 ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
+    Plasmoid.contextualActions: [
+        PlasmaCore.Action {
+            text: i18n("Incognito mode")
+            icon.name: "view-private"
+            checkable: true
+            checked: root.daemonState && root.daemonState.settings ? root.daemonState.settings.incognitoMode : false
+            onTriggered: toggleIncognito()
+        },
+        PlasmaCore.Action {
+            text: i18n("Refresh Toggl")
+            icon.name: "view-refresh"
+            enabled: showToggl()
+            onTriggered: Api.refresh("toggl", pollState)
+        }
+    ]
     preferredRepresentation: fullRepresentation
     fullRepresentation: Item {
         id: compactRoot
@@ -97,7 +112,6 @@ PlasmoidItem {
 
         PopupShell {
             id: popup
-            parent: compactRoot
             panelLocation: Plasmoid.location
             content: [
                 Loader {
@@ -152,6 +166,18 @@ PlasmoidItem {
         Api.loadState(function(data, error) {
             if (data)
                 root.daemonState = data
+        })
+    }
+
+    function toggleIncognito() {
+        if (!root.daemonState || !root.daemonState.settings)
+            return
+        var settings = root.daemonState.settings
+        settings.incognitoMode = !settings.incognitoMode
+        Api.saveSettings(settings, function(data, error) {
+            if (data)
+                root.daemonState.settings = data
+            pollState()
         })
     }
 
@@ -216,14 +242,14 @@ PlasmoidItem {
 
     function showToggl() {
         return root.daemonState && root.daemonState.settings && root.daemonState.settings.showToggl &&
-            (root.daemonState.settings.togglApiKey || (root.daemonState.toggl && root.daemonState.toggl.usage))
+            (root.daemonState.settings.togglApiKeyConfigured || (root.daemonState.toggl && root.daemonState.toggl.usage))
     }
 
     function showJira() {
         if (!root.daemonState || !root.daemonState.settings || !root.daemonState.settings.showJira)
             return false
         var s = root.daemonState.settings
-        return (s.jiraUrl && s.jiraEmail && s.jiraApiToken && s.jiraProjectKey) ||
+        return (s.jiraUrl && s.jiraEmail && s.jiraApiTokenConfigured && s.jiraProjectKey) ||
             (root.daemonState.jira && root.daemonState.jira.usage)
     }
 }
