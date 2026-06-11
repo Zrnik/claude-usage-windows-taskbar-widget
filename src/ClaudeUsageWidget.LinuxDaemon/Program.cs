@@ -13,8 +13,10 @@ app.MapGet("/state", () => Results.Json(runtime.GetState(), DaemonRuntime.JsonOp
 app.MapGet("/settings", () => Results.Json(SettingsStore.Instance.ToSnapshot(), DaemonRuntime.JsonOptions));
 app.MapPost("/settings", (SettingsSnapshot settings) =>
 {
+    var previous = SettingsStore.Instance.ToSnapshot();
     SettingsStore.Instance.Apply(settings);
     runtime.RequestStateChanged();
+    runtime.RefreshAfterSettingsChange(previous);
     return Results.Json(SettingsStore.Instance.ToSnapshot(), DaemonRuntime.JsonOptions);
 });
 
@@ -138,6 +140,17 @@ internal sealed class DaemonRuntime
         lock (_lock) _stateVersion++;
     }
 
+    public void RefreshAfterSettingsChange(SettingsSnapshot previous)
+    {
+        var current = SettingsStore.Instance.ToSnapshot();
+
+        if (TogglSettingsChanged(previous, current) && current.ShowToggl)
+            _ = SafeRefresh(() => RefreshTogglAsync(force: true));
+
+        if (JiraSettingsChanged(previous, current) && current.ShowJira)
+            _ = SafeRefresh(() => RefreshJiraAsync(force: true));
+    }
+
     private void LoadAccounts()
     {
         var accounts = CredentialStore.LoadAllAccounts()
@@ -216,6 +229,40 @@ internal sealed class DaemonRuntime
         try { await refresh(); }
         catch { }
     }
+
+    private static bool TogglSettingsChanged(SettingsSnapshot previous, SettingsSnapshot current) =>
+        previous.ShowToggl != current.ShowToggl ||
+        previous.TogglApiKey != current.TogglApiKey ||
+        previous.TogglMonthlyTargetCzk != current.TogglMonthlyTargetCzk ||
+        previous.WorkdayStartHour != current.WorkdayStartHour ||
+        previous.WorkdayEndHour != current.WorkdayEndHour ||
+        !DictionaryEquals(previous.TogglProjectRates, current.TogglProjectRates);
+
+    private static bool JiraSettingsChanged(SettingsSnapshot previous, SettingsSnapshot current) =>
+        previous.ShowJira != current.ShowJira ||
+        previous.JiraUrl != current.JiraUrl ||
+        previous.JiraEmail != current.JiraEmail ||
+        previous.JiraApiToken != current.JiraApiToken ||
+        previous.JiraProjectKey != current.JiraProjectKey ||
+        !SetEquals(previous.JiraDeveloperAccountIds, current.JiraDeveloperAccountIds);
+
+    private static bool DictionaryEquals<TKey, TValue>(
+        IReadOnlyDictionary<TKey, TValue> a,
+        IReadOnlyDictionary<TKey, TValue> b)
+        where TKey : notnull
+    {
+        if (a.Count != b.Count) return false;
+        var comparer = EqualityComparer<TValue>.Default;
+        foreach (var (key, value) in a)
+        {
+            if (!b.TryGetValue(key, out var other) || !comparer.Equals(value, other))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool SetEquals(IReadOnlyCollection<string> a, IReadOnlyCollection<string> b) =>
+        a.Count == b.Count && new HashSet<string>(a, StringComparer.Ordinal).SetEquals(b);
 }
 
 internal sealed record KnownLabel(string Label, string Display);
