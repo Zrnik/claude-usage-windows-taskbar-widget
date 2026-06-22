@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-0.2.12}"
+VERSION="${VERSION:-0.2.21}"
 RELEASE="${RELEASE:-1}"
 ARCH="${ARCH:-x86_64}"
 RID="${RID:-linux-x64}"
@@ -17,6 +17,7 @@ SPEC="$TOPDIR/SPECS/${PKG}.spec"
 rm -rf "$WORK" "$PUBLISH"
 mkdir -p "$PAYLOAD/usr/lib/claude-usage-widget" \
   "$PAYLOAD/usr/lib/systemd/user" \
+  "$PAYLOAD/usr/bin" \
   "$PAYLOAD/usr/share/plasma/plasmoids/$PLASMOID_ID" \
   "$TOPDIR/BUILD" "$TOPDIR/BUILDROOT" "$TOPDIR/RPMS" "$TOPDIR/SOURCES" "$TOPDIR/SPECS" "$TOPDIR/SRPMS"
 
@@ -30,9 +31,11 @@ dotnet publish "$ROOT/src/ClaudeUsageWidget.LinuxDaemon/ClaudeUsageWidget.LinuxD
   -o "$PUBLISH"
 
 cp "$PUBLISH/ClaudeUsageWidget.LinuxDaemon" "$PAYLOAD/usr/lib/claude-usage-widget/"
+cp "$ROOT/packaging/scripts/update-from-ci.sh" "$PAYLOAD/usr/bin/ai-usage-widget-update"
 cp "$ROOT/packaging/systemd/claude-usage-widget.service" "$PAYLOAD/usr/lib/systemd/user/"
 cp -a "$ROOT/plasmoid/." "$PAYLOAD/usr/share/plasma/plasmoids/$PLASMOID_ID/"
 chmod 0755 "$PAYLOAD/usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon"
+chmod 0755 "$PAYLOAD/usr/bin/ai-usage-widget-update"
 sed -i "s/\"Version\": \".*\"/\"Version\": \"${VERSION}\"/" "$PAYLOAD/usr/share/plasma/plasmoids/$PLASMOID_ID/metadata.json"
 
 cat > "$SPEC" <<'SPEC'
@@ -62,6 +65,7 @@ cp -a %{payload_dir}/. %{buildroot}/
 %files
 /usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon
 /usr/lib/systemd/user/claude-usage-widget.service
+/usr/bin/ai-usage-widget-update
 /usr/share/plasma/plasmoids/eu.zrnik.ai-usage-widget
 
 %post

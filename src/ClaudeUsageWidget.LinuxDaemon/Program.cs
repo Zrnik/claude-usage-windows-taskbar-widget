@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using ClaudeUsageWidgetProvider;
@@ -25,6 +26,11 @@ app.MapPost("/refresh/{service}", async (string service) =>
 {
     var ok = await runtime.RefreshAsync(service, force: true);
     return ok ? Results.Json(runtime.GetState(), DaemonRuntime.JsonOptions) : Results.BadRequest(new { error = "Unknown service" });
+});
+app.MapPost("/update", () =>
+{
+    LinuxPackageUpdater.Start();
+    return Results.Accepted();
 });
 
 app.MapGet("/projects/toggl", async () =>
@@ -267,6 +273,26 @@ internal sealed class DaemonRuntime
 
     private static bool SetEquals(IReadOnlyCollection<string> a, IReadOnlyCollection<string> b) =>
         a.Count == b.Count && new HashSet<string>(a, StringComparer.Ordinal).SetEquals(b);
+}
+
+internal static class LinuxPackageUpdater
+{
+    private const string UpdaterPath = "/usr/bin/ai-usage-widget-update";
+
+    public static void Start()
+    {
+        if (!File.Exists(UpdaterPath))
+            throw new FileNotFoundException("CI updater is not installed.", UpdaterPath);
+
+        var info = new ProcessStartInfo
+        {
+            FileName = UpdaterPath,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        Process.Start(info);
+    }
 }
 
 internal sealed record KnownLabel(string Label, string Display);

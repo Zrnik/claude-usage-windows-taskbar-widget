@@ -37,6 +37,11 @@ PlasmoidItem {
             icon.name: "view-refresh"
             enabled: showToggl()
             onTriggered: Api.refresh("toggl", pollState)
+        },
+        PlasmaCore.Action {
+            text: i18n("Aktualizovat")
+            icon.name: "system-software-update"
+            onTriggered: Api.update(function(data, error) { pollState() })
         }
     ]
     preferredRepresentation: fullRepresentation
@@ -250,8 +255,7 @@ PlasmoidItem {
     }
 
     function showToggl() {
-        return root.daemonState && root.daemonState.settings && root.daemonState.settings.showToggl &&
-            (root.daemonState.settings.togglApiKeyConfigured || (root.daemonState.toggl && root.daemonState.toggl.usage))
+        return root.daemonState && root.daemonState.settings && root.daemonState.settings.showToggl
     }
 
     function showJira() {

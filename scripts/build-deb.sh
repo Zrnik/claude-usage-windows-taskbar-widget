@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-0.2.12}"
+VERSION="${VERSION:-0.2.21}"
 ARCH="${ARCH:-amd64}"
 RID="${RID:-linux-x64}"
 PKG="claude-usage-widget"
@@ -14,6 +14,7 @@ rm -rf "$STAGE" "$PUBLISH"
 mkdir -p "$STAGE/DEBIAN" \
   "$STAGE/usr/lib/claude-usage-widget" \
   "$STAGE/usr/lib/systemd/user" \
+  "$STAGE/usr/bin" \
   "$STAGE/usr/share/plasma/plasmoids/$PLASMOID_ID"
 
 dotnet publish "$ROOT/src/ClaudeUsageWidget.LinuxDaemon/ClaudeUsageWidget.LinuxDaemon.csproj" \
@@ -26,6 +27,7 @@ dotnet publish "$ROOT/src/ClaudeUsageWidget.LinuxDaemon/ClaudeUsageWidget.LinuxD
   -o "$PUBLISH"
 
 cp "$PUBLISH/ClaudeUsageWidget.LinuxDaemon" "$STAGE/usr/lib/claude-usage-widget/"
+cp "$ROOT/packaging/scripts/update-from-ci.sh" "$STAGE/usr/bin/ai-usage-widget-update"
 cp "$ROOT/packaging/systemd/claude-usage-widget.service" "$STAGE/usr/lib/systemd/user/"
 cp -a "$ROOT/plasmoid/." "$STAGE/usr/share/plasma/plasmoids/$PLASMOID_ID/"
 cp "$ROOT/packaging/debian/control" "$STAGE/DEBIAN/control"
@@ -34,6 +36,7 @@ cp "$ROOT/packaging/debian/prerm" "$STAGE/DEBIAN/prerm"
 
 chmod 0755 "$STAGE/DEBIAN/postinst" "$STAGE/DEBIAN/prerm"
 chmod 0755 "$STAGE/usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon"
+chmod 0755 "$STAGE/usr/bin/ai-usage-widget-update"
 
 sed -i "s/^Version:.*/Version: ${VERSION}/" "$STAGE/DEBIAN/control"
 sed -i "s/^Architecture:.*/Architecture: ${ARCH}/" "$STAGE/DEBIAN/control"

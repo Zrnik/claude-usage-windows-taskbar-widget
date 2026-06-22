@@ -35,6 +35,10 @@ function refresh(service, callback) {
     request("POST", "/refresh/" + service, null, callback)
 }
 
+function update(callback) {
+    request("POST", "/update", null, callback)
+}
+
 function loadTogglProjects(callback) {
     request("GET", "/projects/toggl", null, callback)
 }
