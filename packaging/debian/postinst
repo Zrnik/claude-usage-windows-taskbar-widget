@@ -3,4 +3,23 @@ set -e
 
 systemctl --global enable claude-usage-widget.service >/dev/null 2>&1 || true
 
+if command -v loginctl >/dev/null 2>&1; then
+  loginctl list-users --no-legend 2>/dev/null | while read -r uid user rest; do
+    [ -n "$uid" ] || continue
+    [ -S "/run/user/$uid/bus" ] || continue
+
+    XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+      runuser -u "$user" -- systemctl --user daemon-reload >/dev/null 2>&1 || true
+
+    XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+      runuser -u "$user" -- systemctl --user enable claude-usage-widget.service >/dev/null 2>&1 || true
+
+    XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+      runuser -u "$user" -- systemctl --user restart claude-usage-widget.service >/dev/null 2>&1 || true
+  done
+fi
+
 exit 0
