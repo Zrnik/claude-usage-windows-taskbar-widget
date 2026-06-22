@@ -3,7 +3,7 @@
     "Id": "eu.zrnik.ai-usage-widget",
     "Name": "AI Usage Widget",
     "Description": "AI, Toggl and JIRA usage widget for KDE Plasma",
-    "Version": "0.2.26",
+    "Version": "0.2.27",
     "Authors": [
       {
         "Name": "Stepan Zrnik"

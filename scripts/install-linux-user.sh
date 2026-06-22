@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-0.2.26}"
+VERSION="${VERSION:-0.2.27}"
 ARCH="${ARCH:-amd64}"
 DEB="$ROOT/dist/claude-usage-widget_${VERSION}_${ARCH}.deb"
 

@@ -259,12 +259,13 @@ PlasmoidItem {
         var dailyTarget = togglRequiredHoursPerDay(usage)
         var today = togglTodayHours(usage)
         var todayPct = dailyTarget > 0 ? Math.min(100, today / dailyTarget * 100) : 0
+        var incognito = root.daemonState && root.daemonState.settings && root.daemonState.settings.incognitoMode === true
         return [
             {
                 value: monthlyPct,
                 color: target > 0 && earned >= target ? Style.blue : Style.green,
                 leftText: Math.round(monthlyPct) + "%",
-                rightText: target > 0 ? Format.shortCzk(earned, false) + "/" + Format.shortCzk(target, false) : Format.shortCzk(earned, false)
+                rightText: target > 0 ? Format.shortCzk(earned, incognito) + "/" + Format.shortCzk(target, incognito) : Format.shortCzk(earned, incognito)
             },
             {
                 value: todayPct,
