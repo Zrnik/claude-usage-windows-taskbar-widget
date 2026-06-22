@@ -33,27 +33,54 @@ app.MapPost("/update", () =>
     return Results.Accepted();
 });
 
-app.MapGet("/projects/toggl", async () =>
-{
-    using var client = new TogglApiClient();
-    return Results.Json(await client.FetchProjectsAsync(), DaemonRuntime.JsonOptions);
-});
+app.MapGet("/projects/toggl", FetchTogglProjectsAsync);
 
-app.MapGet("/projects/jira", async () =>
-{
-    using var client = new JiraApiClient();
-    return Results.Json(await client.FetchProjectsAsync(), DaemonRuntime.JsonOptions);
-});
+app.MapGet("/projects/jira", FetchJiraProjectsAsync);
 
-app.MapGet("/users/jira", async () =>
-{
-    using var client = new JiraApiClient();
-    return Results.Json(await client.FetchAssignableUsersAsync(), DaemonRuntime.JsonOptions);
-});
+app.MapGet("/users/jira", FetchJiraUsersAsync);
 
 app.MapGet("/runtime/port", () => Results.Text(DaemonRuntime.ResolvePort().ToString()));
 
 await app.RunAsync();
+
+static async Task<IResult> FetchTogglProjectsAsync()
+{
+    try
+    {
+        using var client = new TogglApiClient();
+        return Results.Json(await client.FetchProjectsAsync(), DaemonRuntime.JsonOptions);
+    }
+    catch (Exception ex)
+    {
+        return DaemonRuntime.UpstreamError("Toggl", ex);
+    }
+}
+
+static async Task<IResult> FetchJiraProjectsAsync()
+{
+    try
+    {
+        using var client = new JiraApiClient();
+        return Results.Json(await client.FetchProjectsAsync(), DaemonRuntime.JsonOptions);
+    }
+    catch (Exception ex)
+    {
+        return DaemonRuntime.UpstreamError("JIRA", ex);
+    }
+}
+
+static async Task<IResult> FetchJiraUsersAsync()
+{
+    try
+    {
+        using var client = new JiraApiClient();
+        return Results.Json(await client.FetchAssignableUsersAsync(), DaemonRuntime.JsonOptions);
+    }
+    catch (Exception ex)
+    {
+        return DaemonRuntime.UpstreamError("JIRA", ex);
+    }
+}
 
 internal sealed class DaemonRuntime
 {
@@ -82,6 +109,22 @@ internal sealed class DaemonRuntime
         var env = Environment.GetEnvironmentVariable("CLAUDE_USAGE_WIDGET_PORT");
         if (int.TryParse(env, out var port) && port is > 1024 and < 65535) return port;
         return 43175;
+    }
+
+    public static IResult UpstreamError(string service, Exception ex)
+    {
+        var message = ex switch
+        {
+            HttpRequestException http when http.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden =>
+                $"Invalid {service} credentials",
+            HttpRequestException http when (int?)http.StatusCode == 402 && service == "Toggl" =>
+                "Toggl API rate limit exceeded (30/h)",
+            TaskCanceledException =>
+                $"{service} request timed out",
+            _ => ex.Message
+        };
+
+        return Results.Json(new { error = message }, DaemonRuntime.JsonOptions, statusCode: StatusCodes.Status502BadGateway);
     }
 
     public async Task StartAsync()

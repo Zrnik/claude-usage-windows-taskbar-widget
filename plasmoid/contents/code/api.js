@@ -17,7 +17,14 @@ function request(method, path, body, callback) {
                 callback(null, "Invalid daemon response")
             }
         } else {
-            callback(null, xhr.status > 0 ? "HTTP " + xhr.status : "Daemon offline")
+            var message = xhr.status > 0 ? "HTTP " + xhr.status : "Daemon offline"
+            try {
+                var errorBody = JSON.parse(xhr.responseText)
+                if (errorBody && errorBody.error)
+                    message = errorBody.error
+            } catch (e) {
+            }
+            callback(null, message)
         }
     }
     xhr.send(body === null || body === undefined ? null : JSON.stringify(body))
