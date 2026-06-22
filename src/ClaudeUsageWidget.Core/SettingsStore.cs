@@ -4,6 +4,13 @@ namespace ClaudeUsageWidgetProvider;
 
 internal sealed class SettingsStore
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
     public static readonly SettingsStore Instance = new();
 
     public bool NotificationsEnabled { get; set; }
@@ -245,12 +252,6 @@ internal sealed class SettingsStore
         }
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
-    };
 }
 
 internal sealed class SettingsSnapshot
