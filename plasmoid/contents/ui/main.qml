@@ -18,6 +18,7 @@ PlasmoidItem {
     readonly property int panelWidth: compactWidth()
 
     width: panelWidth
+    implicitWidth: panelWidth
     implicitHeight: fallbackPanelHeight
     Layout.minimumWidth: panelWidth
     Layout.preferredWidth: panelWidth
@@ -85,12 +86,12 @@ PlasmoidItem {
                 }
             }
 
-            TogglTile {
+            ServiceTile {
                 visible: root.togglVisible
                 tileWidth: root.daemonState && root.daemonState.settings ? root.daemonState.settings.togglWidth : 170
-                data: root.daemonState && root.daemonState.toggl ? root.daemonState.toggl.usage : null
-                incognito: root.daemonState && root.daemonState.settings ? root.daemonState.settings.incognitoMode : false
-                errorText: root.daemonState && root.daemonState.toggl ? root.daemonState.toggl.lastError || "" : ""
+                iconSource: "../images/toggl-logo.png"
+                bars: togglBars()
+                errorText: root.daemonState && root.daemonState.toggl && !root.daemonState.toggl.usage ? root.daemonState.toggl.lastError || "" : ""
                 onHovered: function(tile) {
                     root.activeTile = tile
                     root.activeKind = "toggl"
@@ -240,6 +241,69 @@ PlasmoidItem {
             })
         }
         return out
+    }
+
+    function togglBars() {
+        var service = root.daemonState ? root.daemonState.toggl : null
+        var usage = service ? service.usage : null
+        if (!usage) {
+            var label = service && service.lastError
+                ? (service.lastError.toLowerCase().indexOf("rate limit") >= 0 ? "Rate limit" : "Toggl error")
+                : "Toggl"
+            return [{ value: service && service.lastError ? 100 : 0, color: service && service.lastError ? Style.maroon : Style.green, centerText: label }]
+        }
+
+        var earned = Number(usage.earnedCzk || 0)
+        var target = Number(usage.targetCzk || 0)
+        var monthlyPct = target > 0 ? Math.min(100, earned / target * 100) : 0
+        var dailyTarget = togglRequiredHoursPerDay(usage)
+        var today = togglTodayHours(usage)
+        var todayPct = dailyTarget > 0 ? Math.min(100, today / dailyTarget * 100) : 0
+        return [
+            {
+                value: monthlyPct,
+                color: target > 0 && earned >= target ? Style.blue : Style.green,
+                leftText: Math.round(monthlyPct) + "%",
+                rightText: target > 0 ? Format.shortCzk(earned, false) + "/" + Format.shortCzk(target, false) : Format.shortCzk(earned, false)
+            },
+            {
+                value: todayPct,
+                color: today >= dailyTarget ? Style.blue : today >= dailyTarget * 0.5 ? Style.green : Style.orange,
+                leftText: today.toFixed(1).replace(".0", "") + "h",
+                rightText: "need " + dailyTarget.toFixed(1).replace(".0", "") + "h"
+            }
+        ]
+    }
+
+    function togglTodayHours(usage) {
+        if (!usage || !usage.dailyBreakdown)
+            return 0
+        var today = new Date().toDateString()
+        for (var i = 0; i < usage.dailyBreakdown.length; i++) {
+            if (new Date(usage.dailyBreakdown[i].date).toDateString() === today)
+                return Number(usage.dailyBreakdown[i].hours || 0)
+        }
+        return 0
+    }
+
+    function togglRequiredHoursPerDay(usage) {
+        if (!usage || Number(usage.targetCzk || 0) <= 0)
+            return 8
+        var remaining = Math.max(0, Number(usage.targetCzk || 0) - Number(usage.earnedCzk || 0))
+        var monthStart = new Date(usage.monthStart)
+        var monthEnd = new Date(usage.monthResetsAt)
+        var workdays = 0
+        for (var d = new Date(monthStart); d < monthEnd; d.setDate(d.getDate() + 1)) {
+            if (d.getDay() !== 0 && d.getDay() !== 6)
+                workdays++
+        }
+        var impliedRate = workdays > 0 ? Number(usage.targetCzk || 0) / (workdays * 8.0) : 0
+        var remainingDays = 0
+        for (var r = new Date(); r < monthEnd; r.setDate(r.getDate() + 1)) {
+            if (r.getDay() !== 0 && r.getDay() !== 6)
+                remainingDays++
+        }
+        return impliedRate > 0 && remainingDays > 0 ? remaining / (impliedRate * remainingDays) : 8
     }
 
     function compactWidth() {
