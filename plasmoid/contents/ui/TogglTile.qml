@@ -20,42 +20,60 @@ Item {
         Item {
             width: 24
             height: root.height
-            Image { width: 20; height: 20; anchors.centerIn: parent; source: root.iconSource; smooth: true }
+            Rectangle {
+                width: 18
+                height: 18
+                anchors.centerIn: parent
+                radius: 3
+                color: "#E57CD8"
+                visible: !togglIcon.status || togglIcon.status === Image.Error
+                Text {
+                    anchors.centerIn: parent
+                    text: "T"
+                    color: "white"
+                    font.pixelSize: 11
+                    font.bold: true
+                }
+            }
+            Image {
+                id: togglIcon
+                width: 20
+                height: 20
+                anchors.centerIn: parent
+                source: root.iconSource
+                smooth: true
+                fillMode: Image.PreserveAspectFit
+            }
         }
         Item { width: 4; height: root.height }
         Column {
+            id: barColumn
             width: Math.max(0, root.width - 28)
-            height: root.height - 10
+            height: Math.max(22, root.height - 8)
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 2
+            spacing: root.height < 30 ? 1 : 2
 
             ProgressBarLite {
                 width: parent.width
-                height: Math.max(10, (parent.height - 2) / 3)
-                value: root.data && root.data.targetCzk > 0 ? Math.min(100, root.data.earnedCzk / root.data.targetCzk * 100) : 0
-                fillColor: root.errorText && !root.data ? Style.maroon :
-                    root.data && root.data.targetCzk > 0 && root.data.earnedCzk >= root.data.targetCzk ? Style.blue :
-                    root.data && root.data.targetCzk > 0 ? Style.green : "#888888"
-                centerText: root.errorText && !root.data ? "Error" : monthlyText()
+                height: Math.max(9, Math.floor((barColumn.height - barColumn.spacing) / 2))
+                fontSize: Math.max(6, Math.min(8, Math.floor(height * 0.72)))
+                value: monthlyPct()
+                fillColor: !root.data && root.errorText ? Style.maroon :
+                    root.data && targetCzk() > 0 && earnedCzk() >= targetCzk() ? Style.blue :
+                    root.data && targetCzk() > 0 ? Style.green : Style.dim
+                leftText: root.data ? Math.round(monthlyPct()) + "%" : ""
+                rightText: root.data ? monthlyCompactText() : ""
+                centerText: root.data ? "" : emptyText()
             }
             ProgressBarLite {
                 width: parent.width
-                height: Math.max(10, (parent.height - 2) / 3)
+                height: Math.max(9, Math.floor((barColumn.height - barColumn.spacing) / 2))
+                fontSize: Math.max(6, Math.min(8, Math.floor(height * 0.72)))
                 value: todayPct()
                 fillColor: todayColor()
-                centerText: root.errorText && !root.data ? "Error" : todayText()
-            }
-            Text {
-                width: parent.width
-                height: Math.max(9, (parent.height - 2) / 3)
-                text: line2Text()
-                color: Style.muted
-                font.pixelSize: 9
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideRight
-                minimumPixelSize: 6
-                fontSizeMode: Text.Fit
+                leftText: root.data ? todayHours().toFixed(1).replace(".0", "") + "h" : ""
+                rightText: root.data ? dailyNeedText() : ""
+                centerText: root.data ? "" : errorShortText()
             }
         }
     }
@@ -69,15 +87,56 @@ Item {
         onDoubleClicked: root.forceRefresh()
     }
 
+    function numeric(value) {
+        var number = Number(value)
+        return isFinite(number) ? number : 0
+    }
+
+    function earnedCzk() {
+        return root.data ? numeric(root.data.earnedCzk) : 0
+    }
+
+    function targetCzk() {
+        return root.data ? numeric(root.data.targetCzk) : 0
+    }
+
+    function monthlyPct() {
+        return targetCzk() > 0 ? Math.min(100, earnedCzk() / targetCzk() * 100) : 0
+    }
+
+    function monthlyCompactText() {
+        if (!root.data)
+            return ""
+        if (root.incognito)
+            return targetCzk() > 0 ? "target" : "earned"
+        return targetCzk() > 0
+            ? Format.shortCzk(earnedCzk(), false) + "/" + Format.shortCzk(targetCzk(), false)
+            : Format.shortCzk(earnedCzk(), false)
+    }
+
+    function emptyText() {
+        return root.errorText ? "Toggl error" : "Toggl"
+    }
+
+    function errorShortText() {
+        if (!root.errorText)
+            return "No data"
+        if (root.errorText.indexOf("rate limit") >= 0 || root.errorText.indexOf("Rate limit") >= 0)
+            return "Rate limit"
+        if (root.errorText.indexOf("key") >= 0 || root.errorText.indexOf("credentials") >= 0)
+            return "Setup"
+        return "Error"
+    }
+
     function monthlyText() {
         if (!root.data)
             return ""
-        var pct = root.data.targetCzk > 0 ? Math.min(100, root.data.earnedCzk / root.data.targetCzk * 100) : 0
+        var pct = monthlyPct()
         if (root.incognito)
-            return root.data.targetCzk > 0 ? Math.round(pct) + "%" : "•••"
-        return root.data.targetCzk > 0
-            ? Math.round(pct) + "%  " + Format.shortCzk(root.data.earnedCzk, false) + " / " + Format.shortCzk(root.data.targetCzk, false)
-            : Format.shortCzk(root.data.earnedCzk, false) + "  (no target)"
+            return targetCzk() > 0 ? Math.round(pct) + "%" : "..."
+        return targetCzk() > 0
+            ? Math.round(pct) + "%  " + Format.shortCzk(earnedCzk(), false) + " / " + Format.shortCzk(targetCzk(), false)
+            : Format.shortCzk(earnedCzk(), false) + "  (no target)"
     }
 
     function todayHours() {
@@ -105,6 +164,13 @@ Item {
         var impliedRate = workdays > 0 ? root.data.targetCzk / (workdays * 8.0) : 0
         var rem = workdaysRemaining()
         return impliedRate > 0 && rem > 0 ? remaining / (impliedRate * rem) : 0
+    }
+
+    function dailyNeedText() {
+        var target = requiredHoursPerDay()
+        if (target <= 0)
+            target = 8
+        return "need " + target.toFixed(1).replace(".0", "") + "h"
     }
 
     function workdaysRemaining() {
