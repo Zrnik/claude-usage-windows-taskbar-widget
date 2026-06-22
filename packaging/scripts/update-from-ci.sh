@@ -17,15 +17,36 @@ api_get() {
 }
 
 echo "Finding latest successful CI package build..."
+release_json="$TMP_DIR/release.json"
+download_url=""
+if api_get "https://api.github.com/repos/$REPO/releases/latest" > "$release_json" 2>/dev/null; then
+  download_url="$(python3 - "$release_json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as f:
+    release = json.load(f)
+for asset in release.get("assets", []):
+    name = asset.get("name", "")
+    if name.endswith("_amd64.deb") or name.endswith(".deb"):
+        print(asset["browser_download_url"])
+        break
+PY
+)"
+fi
+
+if [ -z "$download_url" ]; then
+  echo "No .deb release asset found; trying GitHub Actions artifacts..."
+fi
+
 query="https://api.github.com/repos/$REPO/actions/workflows/$WORKFLOW/runs?status=success&per_page=20"
 if [ -n "$BRANCH" ]; then
   query="$query&branch=$BRANCH"
 fi
 
-runs_json="$TMP_DIR/runs.json"
-api_get "$query" > "$runs_json"
+if [ -z "$download_url" ]; then
+  runs_json="$TMP_DIR/runs.json"
+  api_get "$query" > "$runs_json"
 
-mapfile -t artifact_urls < <(python3 - "$runs_json" <<'PY'
+  mapfile -t artifact_urls < <(python3 - "$runs_json" <<'PY'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as f:
     runs = json.load(f).get("workflow_runs", [])
@@ -35,11 +56,10 @@ for run in runs:
 PY
 )
 
-download_url=""
-for i in "${!artifact_urls[@]}"; do
-  artifacts_json="$TMP_DIR/artifacts-$i.json"
-  api_get "${artifact_urls[$i]}" > "$artifacts_json"
-  candidate="$(python3 - "$artifacts_json" "$ARTIFACT" <<'PY'
+  for i in "${!artifact_urls[@]}"; do
+    artifacts_json="$TMP_DIR/artifacts-$i.json"
+    api_get "${artifact_urls[$i]}" > "$artifacts_json"
+    candidate="$(python3 - "$artifacts_json" "$ARTIFACT" <<'PY'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as f:
     artifacts = json.load(f).get("artifacts", [])
@@ -50,24 +70,38 @@ for artifact in artifacts:
         break
 PY
 )"
-  if [ -n "$candidate" ]; then
-    download_url="$candidate"
-    break
-  fi
-done
+    if [ -n "$candidate" ]; then
+      download_url="$candidate"
+      break
+    fi
+  done
 
-if [ -z "$download_url" ]; then
-  echo "Artifact $ARTIFACT not found in recent successful workflow runs" >&2
-  exit 1
+  if [ -z "$download_url" ]; then
+    echo "Artifact $ARTIFACT not found in recent successful workflow runs" >&2
+    exit 1
+  fi
 fi
 
-echo "Downloading $ARTIFACT..."
-curl -fsSL -L -H "Accept: application/vnd.github+json" -o "$TMP_DIR/artifact.zip" "$download_url"
-unzip -q "$TMP_DIR/artifact.zip" -d "$TMP_DIR/package"
+case "$download_url" in
+  *.deb)
+    deb="$TMP_DIR/package.deb"
+    echo "Downloading $(basename "$download_url")..."
+    curl -fsSL -L -o "$deb" "$download_url"
+    ;;
+  *)
+    echo "Downloading $ARTIFACT..."
+    curl -fsSL -L -H "Accept: application/vnd.github+json" -o "$TMP_DIR/artifact.zip" "$download_url"
+    unzip -q "$TMP_DIR/artifact.zip" -d "$TMP_DIR/package"
+    deb="$(find "$TMP_DIR/package" -maxdepth 1 -type f -name '*.deb' | sort -V | tail -n 1)"
+    if [ -z "$deb" ]; then
+      echo "No .deb package found in CI artifact" >&2
+      exit 1
+    fi
+    ;;
+esac
 
-deb="$(find "$TMP_DIR/package" -maxdepth 1 -type f -name '*.deb' | sort -V | tail -n 1)"
-if [ -z "$deb" ]; then
-  echo "No .deb package found in CI artifact" >&2
+if ! dpkg-deb --field "$deb" Package >/dev/null 2>&1; then
+  echo "Downloaded file is not a Debian package" >&2
   exit 1
 fi
 
