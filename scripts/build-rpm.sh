@@ -7,6 +7,7 @@ RELEASE="${RELEASE:-1}"
 ARCH="${ARCH:-x86_64}"
 RID="${RID:-linux-x64}"
 PKG="claude-usage-widget"
+PLASMOID_ID="eu.zrnik.ai-usage-widget"
 WORK="$ROOT/dist/rpm"
 PAYLOAD="$WORK/payload"
 PUBLISH="$ROOT/dist/publish/linux-daemon-rpm"
@@ -16,19 +17,23 @@ SPEC="$TOPDIR/SPECS/${PKG}.spec"
 rm -rf "$WORK" "$PUBLISH"
 mkdir -p "$PAYLOAD/usr/lib/claude-usage-widget" \
   "$PAYLOAD/usr/lib/systemd/user" \
-  "$PAYLOAD/usr/share/plasma/plasmoids/org.zrnik.claude-usage-widget" \
+  "$PAYLOAD/usr/share/plasma/plasmoids/$PLASMOID_ID" \
   "$TOPDIR/BUILD" "$TOPDIR/BUILDROOT" "$TOPDIR/RPMS" "$TOPDIR/SOURCES" "$TOPDIR/SPECS" "$TOPDIR/SRPMS"
 
 dotnet publish "$ROOT/src/ClaudeUsageWidget.LinuxDaemon/ClaudeUsageWidget.LinuxDaemon.csproj" \
   -c Release -r "$RID" --self-contained true \
   -p:PublishSingleFile=true \
   -p:PublishTrimmed=false \
+  -p:Version="$VERSION" \
+  -p:AssemblyVersion="${VERSION}.0" \
+  -p:FileVersion="${VERSION}.0" \
   -o "$PUBLISH"
 
 cp "$PUBLISH/ClaudeUsageWidget.LinuxDaemon" "$PAYLOAD/usr/lib/claude-usage-widget/"
 cp "$ROOT/packaging/systemd/claude-usage-widget.service" "$PAYLOAD/usr/lib/systemd/user/"
-cp -a "$ROOT/plasmoid/." "$PAYLOAD/usr/share/plasma/plasmoids/org.zrnik.claude-usage-widget/"
+cp -a "$ROOT/plasmoid/." "$PAYLOAD/usr/share/plasma/plasmoids/$PLASMOID_ID/"
 chmod 0755 "$PAYLOAD/usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon"
+sed -i "s/\"Version\": \".*\"/\"Version\": \"${VERSION}\"/" "$PAYLOAD/usr/share/plasma/plasmoids/$PLASMOID_ID/metadata.json"
 
 cat > "$SPEC" <<'SPEC'
 Name: claude-usage-widget
@@ -57,7 +62,7 @@ cp -a %{payload_dir}/. %{buildroot}/
 %files
 /usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon
 /usr/lib/systemd/user/claude-usage-widget.service
-/usr/share/plasma/plasmoids/org.zrnik.claude-usage-widget
+/usr/share/plasma/plasmoids/eu.zrnik.ai-usage-widget
 
 %post
 systemctl --user daemon-reload >/dev/null 2>&1 || true

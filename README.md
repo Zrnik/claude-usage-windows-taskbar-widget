@@ -1,4 +1,4 @@
-# Claude Usage Widget
+# AI Usage Widget
 
 A small WPF widget that sits in the Windows taskbar and shows your current Claude AI (and Codex) usage — 5-hour session limit and 7-day rolling limit. Supports multiple accounts side by side.
 

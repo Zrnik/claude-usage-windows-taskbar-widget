@@ -223,6 +223,15 @@ PlasmoidItem {
                 errorText: account.lastError || ""
             })
         }
+        if (out.length === 0 && !showToggl() && !showJira()) {
+            out.push({
+                index: -1,
+                service: "claude",
+                width: 170,
+                bars: [{ value: 0, color: Style.green, centerText: "Setup" }],
+                errorText: ""
+            })
+        }
         return out
     }
 

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using ClaudeUsageWidgetProvider;
 
@@ -50,7 +51,10 @@ await app.RunAsync();
 
 internal sealed class DaemonRuntime
 {
-    public const string Version = "0.2.12";
+    public static readonly string Version =
+        typeof(DaemonRuntime).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(DaemonRuntime).Assembly.GetName().Version?.ToString()
+        ?? "0.0.0";
     public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true

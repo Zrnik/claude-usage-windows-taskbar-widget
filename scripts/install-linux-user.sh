@@ -17,7 +17,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now claude-usage-widget.service
 
 if command -v kpackagetool6 >/dev/null 2>&1; then
-  kpackagetool6 --type Plasma/Applet --show org.zrnik.claude-usage-widget >/dev/null 2>&1 || true
+  kpackagetool6 --type Plasma/Applet --show eu.zrnik.ai-usage-widget >/dev/null 2>&1 || true
 fi
 
 echo "Installed $DEB"

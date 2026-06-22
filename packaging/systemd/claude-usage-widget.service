@@ -1,5 +1,5 @@
 [Unit]
-Description=Claude Usage Widget daemon
+Description=AI Usage Widget daemon
 After=network-online.target
 
 [Service]

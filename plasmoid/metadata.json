@@ -1,8 +1,8 @@
 {
   "KPlugin": {
-    "Id": "org.zrnik.claude-usage-widget",
-    "Name": "Claude Usage Widget",
-    "Description": "Claude, Codex, Toggl and JIRA usage widget for KDE Plasma",
+    "Id": "eu.zrnik.ai-usage-widget",
+    "Name": "AI Usage Widget",
+    "Description": "AI, Toggl and JIRA usage widget for KDE Plasma",
     "Version": "0.2.12",
     "Authors": [
       {
