@@ -155,8 +155,12 @@ internal sealed class SettingsStore
             var json = JsonSerializer.Serialize(ToSnapshot(), JsonOptions);
             File.WriteAllText(path, json);
             TryChmod600(path);
+            Console.Error.WriteLine($"Settings saved to {path}");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Failed to save settings to {SafeSettingsPath()}: {ex}");
+        }
     }
 
     private void Load()
@@ -164,11 +168,19 @@ internal sealed class SettingsStore
         try
         {
             var path = XdgPaths.SettingsPath;
-            if (!File.Exists(path)) return;
+            if (!File.Exists(path))
+            {
+                Console.Error.WriteLine($"Settings file not found at {path}; using defaults");
+                return;
+            }
             var snapshot = JsonSerializer.Deserialize<SettingsSnapshot>(File.ReadAllText(path), JsonOptions);
             if (snapshot != null) ApplyLoaded(snapshot);
+            Console.Error.WriteLine($"Settings loaded from {path}");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Failed to load settings from {SafeSettingsPath()}: {ex}");
+        }
     }
 
     private void ApplyLoaded(SettingsSnapshot snapshot)
@@ -221,10 +233,23 @@ internal sealed class SettingsStore
         catch { }
     }
 
+    private static string SafeSettingsPath()
+    {
+        try
+        {
+            return XdgPaths.SettingsPath;
+        }
+        catch (Exception ex)
+        {
+            return $"<unresolved: {ex.Message}>";
+        }
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
     };
 }
 
