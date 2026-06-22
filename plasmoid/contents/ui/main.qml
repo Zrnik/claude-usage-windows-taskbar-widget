@@ -13,6 +13,8 @@ PlasmoidItem {
     property string activeKind: ""
     property int activeIndex: -1
     readonly property int fallbackPanelHeight: 36
+    readonly property bool togglVisible: root.daemonState && root.daemonState.settings && root.daemonState.settings.showToggl === true
+    readonly property bool jiraVisible: showJira()
     readonly property int panelWidth: compactWidth()
 
     width: panelWidth
@@ -84,7 +86,7 @@ PlasmoidItem {
             }
 
             TogglTile {
-                visible: showToggl()
+                visible: root.togglVisible
                 tileWidth: root.daemonState && root.daemonState.settings ? root.daemonState.settings.togglWidth : 170
                 data: root.daemonState && root.daemonState.toggl ? root.daemonState.toggl.usage : null
                 incognito: root.daemonState && root.daemonState.settings ? root.daemonState.settings.incognitoMode : false
@@ -100,7 +102,7 @@ PlasmoidItem {
             }
 
             JiraTile {
-                visible: showJira()
+                visible: root.jiraVisible
                 tileWidth: root.daemonState && root.daemonState.settings ? root.daemonState.settings.jiraWidth : 170
                 data: root.daemonState && root.daemonState.jira ? root.daemonState.jira.usage : null
                 errorText: root.daemonState && root.daemonState.jira ? root.daemonState.jira.lastError || "" : ""
@@ -228,7 +230,7 @@ PlasmoidItem {
                 errorText: account.lastError || ""
             })
         }
-        if (out.length === 0 && !showToggl() && !showJira()) {
+        if (out.length === 0 && !root.togglVisible && !root.jiraVisible) {
             out.push({
                 index: -1,
                 service: "claude",
@@ -247,15 +249,15 @@ PlasmoidItem {
         var tiles = accountTiles()
         for (var i = 0; i < tiles.length; i++)
             total += Number(tiles[i].width || 0)
-        if (showToggl())
+        if (root.togglVisible)
             total += Number(root.daemonState.settings.togglWidth || 170)
-        if (showJira())
+        if (root.jiraVisible)
             total += Number(root.daemonState.settings.jiraWidth || 170)
         return Math.max(1, total)
     }
 
     function showToggl() {
-        return root.daemonState && root.daemonState.settings && root.daemonState.settings.showToggl
+        return root.togglVisible
     }
 
     function showJira() {
