@@ -1,28 +1,34 @@
 # Linux daemon operations
 
-The AI Usage Widget daemon owns the local HTTP endpoint `127.0.0.1:43175`. The
-plasmoid expects this fixed endpoint, so do not assign that port to another
-application.
+The AI Usage Widget daemon selects the first free local endpoint in
+`127.0.0.1:43175-43195`. The plasmoid discovers the active daemon through its
+`/health` response, so another application using one port in this range does
+not prevent the widget from starting.
 
 The Debian package enables the user service at login and reloads, resets, and
 restarts it during package upgrades. An upgrade therefore replaces a failed or
 older widget daemon automatically. It deliberately does not stop an unrelated
 process that owns port 43175.
 
+Before an in-widget update installs a package, it preserves the current daemon
+settings in `~/.config/claude-usage-widget/settings.json.pre-update`. The active
+`settings.json` is not modified by the package installer.
+
 ## A port collision
 
-When the daemon cannot bind the port, it exits with status `78` and systemd does
-not restart it. Resolve the collision before starting the service again:
+When every port in the range is occupied, the daemon exits with status `78` and
+systemd does not restart it. Resolve the collision before starting the service
+again:
 
 ```bash
 systemctl --user stop claude-usage-widget.service
 systemctl --user reset-failed claude-usage-widget.service
-ss -ltnp 'sport = :43175'
+ss -ltnp
 ```
 
-Identify the listed process and stop or reconfigure that other application. Do
-not change the widget daemon's port: the plasmoid communicates with port 43175.
-After the port is free, restore the daemon:
+Identify the processes using ports `43175` through `43195` and stop or
+reconfigure enough of them to free one port. After a port is free, restore the
+daemon:
 
 ```bash
 systemctl --user start claude-usage-widget.service

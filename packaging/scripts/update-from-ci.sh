@@ -6,11 +6,21 @@ WORKFLOW="${WORKFLOW:-release.yml}"
 ARTIFACT="${ARTIFACT:-linux-packages}"
 BRANCH="${BRANCH:-}"
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ai-usage-widget-update.XXXXXX")"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+SETTINGS_PATH="$CONFIG_HOME/claude-usage-widget/settings.json"
+SETTINGS_BACKUP_PATH="$CONFIG_HOME/claude-usage-widget/settings.json.pre-update"
 
 cleanup() {
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
+
+# Package upgrades must never be the only copy of a user's daemon settings.
+# Keep a single, permission-preserving snapshot before requesting privileges
+# for dpkg. The daemon loads this same file after systemd restarts it.
+if [ -f "$SETTINGS_PATH" ]; then
+  cp -p "$SETTINGS_PATH" "$SETTINGS_BACKUP_PATH"
+fi
 
 api_get() {
   curl -fsSL -H "Accept: application/vnd.github+json" "$1"
@@ -125,3 +135,6 @@ if systemctl --user list-unit-files plasma-plasmashell.service >/dev/null 2>&1; 
 fi
 
 echo "AI Usage Widget updated from CI."
+if [ -f "$SETTINGS_BACKUP_PATH" ]; then
+  echo "Previous settings backed up to $SETTINGS_BACKUP_PATH"
+fi

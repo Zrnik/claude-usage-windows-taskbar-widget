@@ -138,10 +138,14 @@ PlasmoidItem {
     }
 
     Timer {
-        interval: 1000
+        // Keep state in sync when the daemon restarts itself (for example
+        // after a package update). Previously this only retried while no
+        // state existed, so a live plasmoid could display stale settings and
+        // version information indefinitely.
+        interval: 15000
         running: true
         repeat: true
-        onTriggered: if (!root.daemonState) pollState()
+        onTriggered: pollState()
     }
 
     Component.onCompleted: pollState()

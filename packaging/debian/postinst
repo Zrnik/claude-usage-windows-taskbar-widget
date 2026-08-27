@@ -20,12 +20,13 @@ if command -v loginctl >/dev/null 2>&1; then
       runuser -u "$user" -- sed -i "s/$OLD_PLASMOID_PATTERN/$PLASMOID_ID/g" "$appletsrc" 2>/dev/null || true
     fi
 
-    for local_id in "$OLD_PLASMOID_ID" "$PLASMOID_ID"; do
-      local_plasmoid="$home/.local/share/plasma/plasmoids/$local_id"
-      if [ -d "$local_plasmoid" ]; then
-        runuser -u "$user" -- mv "$local_plasmoid" "$local_plasmoid.disabled-by-deb-package" 2>/dev/null || true
-      fi
-    done
+    # This is a one-time migration from the old local package identifier. Do
+    # not move an already current user-local plasmoid on every package upgrade:
+    # Plasma owns its state for that package and an upgrade must not disturb it.
+    old_local_plasmoid="$home/.local/share/plasma/plasmoids/$OLD_PLASMOID_ID"
+    if [ -d "$old_local_plasmoid" ]; then
+      runuser -u "$user" -- mv "$old_local_plasmoid" "$old_local_plasmoid.disabled-by-deb-package" 2>/dev/null || true
+    fi
 
     XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \

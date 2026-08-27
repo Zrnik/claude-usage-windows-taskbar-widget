@@ -4,62 +4,74 @@ using System.Reflection;
 using System.Text.Json;
 using ClaudeUsageWidgetProvider;
 
-var builder = WebApplication.CreateSlimBuilder(args);
-builder.WebHost.UseUrls($"http://127.0.0.1:{DaemonRuntime.ResolvePort()}");
-
-var app = builder.Build();
 var runtime = new DaemonRuntime();
-await runtime.StartAsync();
+WebApplication? app = null;
+var port = 0;
 
-app.MapGet("/health", () => Results.Ok(new { ok = true, version = DaemonRuntime.Version }));
-app.MapGet("/state", () => Results.Json(runtime.GetState(), DaemonRuntime.JsonOptions));
-app.MapGet("/settings", () => Results.Json(SettingsStore.Instance.ToSnapshot(includeSecrets: false), DaemonRuntime.JsonOptions));
-app.MapPost("/settings", (SettingsSnapshot settings) =>
+foreach (var candidatePort in DaemonRuntime.GetCandidatePorts())
 {
-    var previous = SettingsStore.Instance.ToSnapshot();
-    SettingsStore.Instance.Apply(settings);
-    runtime.RequestStateChanged();
-    runtime.RefreshAfterSettingsChange(previous);
-    return Results.Json(SettingsStore.Instance.ToSnapshot(includeSecrets: false), DaemonRuntime.JsonOptions);
-});
-
-app.MapPost("/refresh/{service}", async (string service) =>
-{
-    var ok = await runtime.RefreshAsync(service, force: true);
-    return ok ? Results.Json(runtime.GetState(), DaemonRuntime.JsonOptions) : Results.BadRequest(new { error = "Unknown service" });
-});
-app.MapPost("/update", () =>
-{
-    LinuxPackageUpdater.Start();
-    return Results.Accepted();
-});
-
-app.MapGet("/projects/toggl", FetchTogglProjectsAsync);
-
-app.MapGet("/projects/jira", FetchJiraProjectsAsync);
-
-app.MapGet("/users/jira", FetchJiraUsersAsync);
-
-app.MapGet("/runtime/port", () => Results.Text(DaemonRuntime.ResolvePort().ToString()));
-
-try
-{
-    // Start the HTTP listener before doing any potentially slow remote refreshes. This lets a
-    // port collision fail quickly and, unlike an unhandled Kestrel exception, makes it an
-    // expected terminal state for the systemd unit.
-    await app.StartAsync();
+    var candidate = BuildApplication(candidatePort, runtime);
+    try
+    {
+        // Bind before doing potentially slow remote refreshes. If another local
+        // application owns a candidate port, try the next port in the private range.
+        await candidate.StartAsync();
+        app = candidate;
+        port = candidatePort;
+        break;
+    }
+    catch (Exception ex) when (DaemonRuntime.IsAddressInUse(ex))
+    {
+        await candidate.DisposeAsync();
+    }
 }
-catch (Exception ex) when (DaemonRuntime.IsAddressInUse(ex))
+
+if (app is null)
 {
-    var port = DaemonRuntime.ResolvePort();
-    Console.Error.WriteLine($"Cannot start AI Usage Widget daemon: 127.0.0.1:{port} is already in use.");
-    Console.Error.WriteLine($"Find the owning process with: ss -ltnp 'sport = :{port}'");
+    Console.Error.WriteLine($"Cannot start AI Usage Widget daemon: all ports in {DaemonRuntime.PortRangeDescription} are in use.");
     return DaemonRuntime.AddressInUseExitCode;
 }
 
-await runtime.StartAsync();
+await runtime.StartAsync(port);
 await app.WaitForShutdownAsync();
 return 0;
+
+static WebApplication BuildApplication(int port, DaemonRuntime runtime)
+{
+    var builder = WebApplication.CreateSlimBuilder();
+    builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
+    var app = builder.Build();
+
+    app.MapGet("/health", () => Results.Ok(new { ok = true, app = "ai-usage-widget", version = DaemonRuntime.Version }));
+    app.MapGet("/state", () => Results.Json(runtime.GetState(), DaemonRuntime.JsonOptions));
+    app.MapGet("/settings", () => Results.Json(SettingsStore.Instance.ToSnapshot(includeSecrets: false), DaemonRuntime.JsonOptions));
+    app.MapPost("/settings", (SettingsSnapshot settings) =>
+    {
+        var previous = SettingsStore.Instance.ToSnapshot();
+        SettingsStore.Instance.Apply(settings);
+        runtime.RequestStateChanged();
+        runtime.RefreshAfterSettingsChange(previous);
+        return Results.Json(SettingsStore.Instance.ToSnapshot(includeSecrets: false), DaemonRuntime.JsonOptions);
+    });
+
+    app.MapPost("/refresh/{service}", async (string service) =>
+    {
+        var ok = await runtime.RefreshAsync(service, force: true);
+        return ok ? Results.Json(runtime.GetState(), DaemonRuntime.JsonOptions) : Results.BadRequest(new { error = "Unknown service" });
+    });
+    app.MapPost("/update", () =>
+    {
+        LinuxPackageUpdater.Start();
+        return Results.Accepted();
+    });
+
+    app.MapGet("/projects/toggl", FetchTogglProjectsAsync);
+    app.MapGet("/projects/jira", FetchJiraProjectsAsync);
+    app.MapGet("/users/jira", FetchJiraUsersAsync);
+    app.MapGet("/runtime/port", () => Results.Text(port.ToString()));
+
+    return app;
+}
 
 static async Task<IResult> FetchTogglProjectsAsync()
 {
@@ -103,6 +115,9 @@ static async Task<IResult> FetchJiraUsersAsync()
 internal sealed class DaemonRuntime
 {
     public const int AddressInUseExitCode = 78;
+    private const int FirstPort = 43175;
+    private const int LastPort = 43195;
+    public const string PortRangeDescription = "127.0.0.1:43175-43195";
     public static readonly string Version =
         typeof(DaemonRuntime).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? typeof(DaemonRuntime).Assembly.GetName().Version?.ToString()
@@ -123,11 +138,17 @@ internal sealed class DaemonRuntime
     private Timer? _claudeTimer;
     private Timer? _togglJiraTimer;
 
-    public static int ResolvePort()
+    public static IEnumerable<int> GetCandidatePorts()
     {
         var env = Environment.GetEnvironmentVariable("CLAUDE_USAGE_WIDGET_PORT");
-        if (int.TryParse(env, out var port) && port is > 1024 and < 65535) return port;
-        return 43175;
+        if (int.TryParse(env, out var port) && port is >= FirstPort and <= LastPort)
+            yield return port;
+
+        for (var candidate = FirstPort; candidate <= LastPort; candidate++)
+        {
+            if (candidate != port)
+                yield return candidate;
+        }
     }
 
     public static bool IsAddressInUse(Exception exception)
@@ -157,10 +178,10 @@ internal sealed class DaemonRuntime
         return Results.Json(new { error = message }, DaemonRuntime.JsonOptions, statusCode: StatusCodes.Status502BadGateway);
     }
 
-    public async Task StartAsync()
+    public async Task StartAsync(int port)
     {
         Directory.CreateDirectory(XdgPaths.RuntimeDir);
-        File.WriteAllText(Path.Combine(XdgPaths.RuntimeDir, "port"), ResolvePort().ToString());
+        File.WriteAllText(Path.Combine(XdgPaths.RuntimeDir, "port"), port.ToString());
         LoadAccounts();
         await RefreshClaudeCodexAsync(force: true);
         await RefreshTogglAsync(force: true);
