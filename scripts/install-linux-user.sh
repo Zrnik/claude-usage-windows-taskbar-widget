@@ -14,6 +14,7 @@ fi
 
 sudo dpkg -i "$DEB"
 systemctl --user daemon-reload
+systemctl --user reset-failed claude-usage-widget.service || true
 systemctl --user enable --now claude-usage-widget.service
 
 if command -v kpackagetool6 >/dev/null 2>&1; then

@@ -72,3 +72,8 @@ make build  # dotnet build
 ```
 
 Solution: `ClaudeUsageWidget.sln`
+
+## Linux daemon operations
+
+For the Plasma daemon's local port, restart protection, and crash-dump recovery
+procedure, see [Linux daemon operations](docs/linux-daemon-operations.md).

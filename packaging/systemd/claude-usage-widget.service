@@ -1,12 +1,16 @@
 [Unit]
 Description=AI Usage Widget daemon
 After=network-online.target
+StartLimitIntervalSec=10min
+StartLimitBurst=3
 
 [Service]
 Type=simple
 ExecStart=/usr/lib/claude-usage-widget/ClaudeUsageWidget.LinuxDaemon
 Restart=on-failure
-RestartSec=5
+RestartPreventExitStatus=78
+RestartSec=30
+LimitCORE=0
 Environment=CLAUDE_USAGE_WIDGET_PORT=43175
 Environment=DOTNET_USE_POLLING_FILE_WATCHER=1
 

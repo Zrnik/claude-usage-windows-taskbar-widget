@@ -113,6 +113,7 @@ else
 fi
 
 systemctl --user daemon-reload || true
+systemctl --user reset-failed claude-usage-widget.service || true
 systemctl --user restart claude-usage-widget.service || true
 
 if command -v kbuildsycoca6 >/dev/null 2>&1; then

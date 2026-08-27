@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text.Json;
 using ClaudeUsageWidgetProvider;
@@ -41,7 +42,24 @@ app.MapGet("/users/jira", FetchJiraUsersAsync);
 
 app.MapGet("/runtime/port", () => Results.Text(DaemonRuntime.ResolvePort().ToString()));
 
-await app.RunAsync();
+try
+{
+    // Start the HTTP listener before doing any potentially slow remote refreshes. This lets a
+    // port collision fail quickly and, unlike an unhandled Kestrel exception, makes it an
+    // expected terminal state for the systemd unit.
+    await app.StartAsync();
+}
+catch (Exception ex) when (DaemonRuntime.IsAddressInUse(ex))
+{
+    var port = DaemonRuntime.ResolvePort();
+    Console.Error.WriteLine($"Cannot start AI Usage Widget daemon: 127.0.0.1:{port} is already in use.");
+    Console.Error.WriteLine($"Find the owning process with: ss -ltnp 'sport = :{port}'");
+    return DaemonRuntime.AddressInUseExitCode;
+}
+
+await runtime.StartAsync();
+await app.WaitForShutdownAsync();
+return 0;
 
 static async Task<IResult> FetchTogglProjectsAsync()
 {
@@ -84,6 +102,7 @@ static async Task<IResult> FetchJiraUsersAsync()
 
 internal sealed class DaemonRuntime
 {
+    public const int AddressInUseExitCode = 78;
     public static readonly string Version =
         typeof(DaemonRuntime).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? typeof(DaemonRuntime).Assembly.GetName().Version?.ToString()
@@ -109,6 +128,17 @@ internal sealed class DaemonRuntime
         var env = Environment.GetEnvironmentVariable("CLAUDE_USAGE_WIDGET_PORT");
         if (int.TryParse(env, out var port) && port is > 1024 and < 65535) return port;
         return 43175;
+    }
+
+    public static bool IsAddressInUse(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is SocketException { SocketErrorCode: SocketError.AddressAlreadyInUse })
+                return true;
+        }
+
+        return false;
     }
 
     public static IResult UpstreamError(string service, Exception ex)

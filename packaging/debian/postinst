@@ -33,6 +33,10 @@ if command -v loginctl >/dev/null 2>&1; then
 
     XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+      runuser -u "$user" -- systemctl --user reset-failed claude-usage-widget.service >/dev/null 2>&1 || true
+
+    XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
       runuser -u "$user" -- systemctl --user enable claude-usage-widget.service >/dev/null 2>&1 || true
 
     XDG_RUNTIME_DIR="/run/user/$uid" \
