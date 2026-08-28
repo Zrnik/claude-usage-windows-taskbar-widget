@@ -12,7 +12,9 @@ process that owns port 43175.
 
 Before an in-widget update installs a package, it preserves the current daemon
 settings in `~/.config/claude-usage-widget/settings.json.pre-update`. The active
-`settings.json` is not modified by the package installer.
+`settings.json` is not modified by the package installer. When the installation
+finishes, it restarts the daemon and requests Plasma to reload, so the widget
+immediately runs the newly installed version.
 
 ## A port collision
 

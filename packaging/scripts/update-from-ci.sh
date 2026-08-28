@@ -130,9 +130,25 @@ if command -v kbuildsycoca6 >/dev/null 2>&1; then
   kbuildsycoca6 --noincremental || true
 fi
 
-if systemctl --user list-unit-files plasma-plasmashell.service >/dev/null 2>&1; then
-  systemctl --user restart plasma-plasmashell.service || true
-fi
+restart_plasma_shell() {
+  # Plasma normally runs as a graphical-session process, not a systemd user
+  # service. Ask its D-Bus API to reload first, which recreates the plasmoid
+  # from the newly installed package without interrupting the update itself.
+  for qdbus in qdbus6 qdbus; do
+    if command -v "$qdbus" >/dev/null 2>&1 &&
+      "$qdbus" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.refreshCurrentShell >/dev/null 2>&1; then
+      return
+    fi
+  done
+
+  # Some distributions do expose Plasma as a user unit. Keep this as a
+  # fallback for sessions where the D-Bus service cannot be reached.
+  if systemctl --user list-unit-files plasma-plasmashell.service >/dev/null 2>&1; then
+    systemctl --user restart plasma-plasmashell.service || true
+  fi
+}
+
+restart_plasma_shell
 
 echo "AI Usage Widget updated from CI."
 if [ -f "$SETTINGS_BACKUP_PATH" ]; then
