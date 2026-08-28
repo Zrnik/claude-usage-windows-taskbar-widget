@@ -9,7 +9,7 @@ Item {
     property bool loading: false
     property string errorText: ""
     signal hovered(var tile)
-    signal unhovered()
+    signal unhovered(var tile)
     signal forceRefresh()
 
     width: tileWidth
@@ -65,7 +65,7 @@ Item {
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
         onEntered: root.hovered(root)
-        onExited: root.unhovered()
+        onExited: root.unhovered(root)
         onDoubleClicked: root.forceRefresh()
     }
 }

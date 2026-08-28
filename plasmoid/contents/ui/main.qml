@@ -81,7 +81,7 @@ PlasmoidItem {
                         popupLoader.sourceComponent = accountPopupComponent
                         popup.showFor(tile)
                     }
-                    onUnhovered: popup.close()
+                    onUnhovered: function(tile) { popup.requestClose(tile) }
                     onForceRefresh: Api.refresh(modelData.service, pollState)
                 }
             }
@@ -98,7 +98,7 @@ PlasmoidItem {
                     popupLoader.sourceComponent = togglPopupComponent
                     popup.showFor(tile)
                 }
-                onUnhovered: popup.close()
+                onUnhovered: function(tile) { popup.requestClose(tile) }
                 onForceRefresh: Api.refresh("toggl", pollState)
             }
 
@@ -113,7 +113,7 @@ PlasmoidItem {
                     popupLoader.sourceComponent = jiraPopupComponent
                     popup.showFor(tile)
                 }
-                onUnhovered: popup.close()
+                onUnhovered: function(tile) { popup.requestClose(tile) }
                 onForceRefresh: Api.refresh("jira", pollState)
             }
         }
@@ -131,17 +131,6 @@ PlasmoidItem {
     }
 
     Timer {
-        interval: 15000
-        running: true
-        repeat: true
-        onTriggered: pollState()
-    }
-
-    Timer {
-        // Keep state in sync when the daemon restarts itself (for example
-        // after a package update). Previously this only retried while no
-        // state existed, so a live plasmoid could display stale settings and
-        // version information indefinitely.
         interval: 15000
         running: true
         repeat: true
