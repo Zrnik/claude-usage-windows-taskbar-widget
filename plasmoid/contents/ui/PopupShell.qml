@@ -17,21 +17,21 @@ PlasmaCore.Dialog {
     hideOnWindowDeactivate: false
     location: panelLocation
 
-    Timer {
-        id: closeTimer
-        interval: 200
-        repeat: false
-        onTriggered: {
-            if (!root.hoveredTile && !root.popupHovered)
-                root.close()
-        }
-    }
-
     mainItem: Rectangle {
         width: 280
         height: contentColumn.implicitHeight + 20
         color: Style.popupBg
         radius: 6
+
+        Timer {
+            id: closeTimer
+            interval: 200
+            repeat: false
+            onTriggered: {
+                if (!root.hoveredTile && !root.popupHovered)
+                    root.close()
+            }
+        }
 
         HoverHandler {
             onHoveredChanged: root.setPopupHovered(hovered)
