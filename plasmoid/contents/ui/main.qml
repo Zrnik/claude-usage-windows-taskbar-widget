@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
+import org.kde.notification
 import "../code/api.js" as Api
 import "Format.js" as Format
 
@@ -44,7 +45,7 @@ PlasmoidItem {
         PlasmaCore.Action {
             text: i18n("Aktualizovat")
             icon.name: "system-software-update"
-            onTriggered: Api.update(function(data, error) { pollState() })
+            onTriggered: startUpdate()
         }
     ]
     preferredRepresentation: fullRepresentation
@@ -139,6 +140,13 @@ PlasmoidItem {
 
     Component.onCompleted: pollState()
 
+    Notification {
+        id: updateNotification
+        componentName: "eu.zrnik.ai-usage-widget"
+        eventId: "update"
+        title: i18n("AI Usage Widget")
+    }
+
     Component {
         id: accountPopupComponent
         ClaudeCodexPopup {
@@ -179,6 +187,20 @@ PlasmoidItem {
             if (data)
                 root.daemonState.settings = data
             pollState()
+        })
+    }
+
+    function startUpdate() {
+        updateNotification.text = i18n("Stahuji a instaluji aktualizaci…")
+        updateNotification.sendEvent()
+        Api.update(function(data, error) {
+            if (error) {
+                updateNotification.text = i18n("Aktualizaci se nepodařilo spustit: %1", error)
+                updateNotification.sendEvent()
+                return
+            }
+            updateNotification.text = i18n("Aktualizace byla spuštěna. Pokud je potřeba, potvrď oprávnění.")
+            updateNotification.sendEvent()
         })
     }
 

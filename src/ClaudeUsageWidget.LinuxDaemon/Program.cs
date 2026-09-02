@@ -62,7 +62,8 @@ static WebApplication BuildApplication(int port, DaemonRuntime runtime)
     app.MapPost("/update", () =>
     {
         LinuxPackageUpdater.Start();
-        return Results.Accepted();
+        return Results.Json(new { status = "started" }, DaemonRuntime.JsonOptions,
+            statusCode: StatusCodes.Status202Accepted);
     });
 
     app.MapGet("/projects/toggl", FetchTogglProjectsAsync);
