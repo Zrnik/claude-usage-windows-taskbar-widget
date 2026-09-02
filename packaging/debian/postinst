@@ -20,13 +20,11 @@ if command -v loginctl >/dev/null 2>&1; then
       runuser -u "$user" -- sed -i "s/$OLD_PLASMOID_PATTERN/$PLASMOID_ID/g" "$appletsrc" 2>/dev/null || true
     fi
 
-    # This is a one-time migration from the old local package identifier. Do
-    # not move an already current user-local plasmoid on every package upgrade:
-    # Plasma owns its state for that package and an upgrade must not disturb it.
+    # Remove the old user-local package after migrating panel instances.  Do
+    # not rename it: Plasma still discovers a renamed directory containing a
+    # valid metadata.json and keeps showing the obsolete widget in Add Widgets.
     old_local_plasmoid="$home/.local/share/plasma/plasmoids/$OLD_PLASMOID_ID"
-    if [ -d "$old_local_plasmoid" ]; then
-      runuser -u "$user" -- mv "$old_local_plasmoid" "$old_local_plasmoid.disabled-by-deb-package" 2>/dev/null || true
-    fi
+    rm -rf "$old_local_plasmoid" "$old_local_plasmoid.disabled-by-deb-package"
 
     XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
